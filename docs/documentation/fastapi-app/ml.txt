@@ -1,0 +1,27 @@
+ML Models & Algorithms Used
+1️⃣ Loan Approval Prediction (Classification)
+Algorithm: RandomForestClassifier
+Purpose: Determines whether a loan should be approved (True/False).
+Features Used:
+- Age, employment status, annual income, existing debt
+- Debt-to-income ratio, credit score, credit history length
+- Missed payments, loan amount requested, preferred term
+- Collateral availability
+Works well with tabular financial data.
+
+2️⃣ Loan Amount Estimation (Regression)
+Algorithm: RandomForestRegressor
+Purpose: Predicts the loan amount that will likely be approved.
+Why Random Forest Regression?
+- Captures non-linear relationships between loan eligibility and approved loan amounts.
+
+3️⃣ Interest Rate Prediction (Regression)
+Algorithm: RandomForestRegressor
+Purpose: Estimates the interest rate a customer is likely to receive.
+Why Random Forest Regression?
+Captures complex dependencies between creditworthiness and interest rates.
+Works well with financial datasets that have non-linear trends.
+
+TODO
+- XGBoost
+- Hyperparameter fine tuning
