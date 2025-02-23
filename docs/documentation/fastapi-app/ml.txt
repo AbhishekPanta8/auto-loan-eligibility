@@ -1,27 +1,56 @@
 ML Models & Algorithms Used
 1️⃣ Loan Approval Prediction (Classification)
-Algorithm: RandomForestClassifier
-Purpose: Determines whether a loan should be approved (True/False).
-Features Used:
-- Age, employment status, annual income, existing debt
-- Debt-to-income ratio, credit score, credit history length
-- Missed payments, loan amount requested, preferred term
-- Collateral availability
-Works well with tabular financial data.
 
-2️⃣ Loan Amount Estimation (Regression)
-Algorithm: RandomForestRegressor
-Purpose: Predicts the loan amount that will likely be approved.
-Why Random Forest Regression?
-- Captures non-linear relationships between loan eligibility and approved loan amounts.
+    Algorithm: XGBoostClassifier
+    Purpose: Determines whether a loan should be approved (True/False).
+    Features Used (After Feature Selection & Engineering):
+        Status of existing checking account, credit history, purpose
+        Duration of credit, loan amount, savings account status
+        Employment status, installment rate, personal status/sex
+        Other debtors, property ownership, age, other installment plans
+        Number of existing credits, job type, telephone, foreign worker status
+    Why XGBoost?
+        Handles imbalanced classification well (scale_pos_weight)
+        Boosted trees capture complex patterns in financial risk analysis
+        Offers strong regularization and feature selection benefits
 
-3️⃣ Interest Rate Prediction (Regression)
-Algorithm: RandomForestRegressor
-Purpose: Estimates the interest rate a customer is likely to receive.
-Why Random Forest Regression?
-Captures complex dependencies between creditworthiness and interest rates.
-Works well with financial datasets that have non-linear trends.
+Current ML Model Metrics
 
-TODO
-- XGBoost
-- Hyperparameter fine tuning
+Accuracy
+acc = accuracy_score(y_test, y_pred)
+
+    The ratio of correct predictions (both approved and denied loans) to total predictions.
+    Formula:
+    Accuracy = Correct Predictions / Total Predictions
+    Meaning: Of all test samples, how many did the model get right overall?
+
+Precision
+prec = precision_score(y_test, y_pred)
+
+    Out of all the predicted loan approvals, how many were actually correct?
+    Formula:
+    Precision = True Positives / True Positives + False Positives
+    Meaning: If the model says "Loan Approved," how often is it actually correct?
+
+Recall
+rec = recall_score(y_test, y_pred)
+
+    Out of all truly approvable loans, how many does the model catch?
+    Formula:
+    Recall = True Positives / True Positives + False Negatives
+    Meaning: If a loan should be approved, how often does the model actually approve it?
+
+2️⃣ Chosen Acceptance Thresholds
+
+    assert acc > 0.75 → Want at least 75% of all predictions to be correct.
+    assert prec > 0.70 → Want at least 70% of approved loans to be the correct decision.
+    assert rec > 0.65 → Want at least 65% of truly approvable loans to be predicted as approved.
+
+✅ TODO (Updated)
+🔹 Run XGBoost Optimization
+    🔄 Hyperparameter Fine-Tuning 
+    1️⃣ Tune XGBoost with GPU acceleration (CUDA) for multi-threading.
+
+
+🔹 Decide on Final Metrics & Acceptance Thresholds with ambassador
+

@@ -2,9 +2,8 @@ Creating venv and installing dependencies
     auto-loan-eligibility> $ cd backend/fastapi-app
     - Might be python3 depending on python path var, but keep name venv to utilize current git ignore
     auto-loan-eligibility/backend/fastapi-app> $ python -m venv venv
-    auto-loan-eligibility/backend/fastapi-app> $ python -m venv venv
     auto-loan-eligibility/backend/fastapi-app> $ venv/scripts/activate // (Windows)
-    auto-loan-eligibility/backend/fastapi-app> $ venv/bin/activate // (MAC (i think...))
+    auto-loan-eligibility/backend/fastapi-app> $ source venv/bin/activate // (MAC)
     (venv) auto-loan-eligibility/backend/fastapi-app> $ pip install -r requirements.txt
 
 Create environment variables file 
