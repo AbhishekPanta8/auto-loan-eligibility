@@ -59,7 +59,7 @@ export function LineOfCreditForm() {
   const handleSubmit = async () => {
     setLoading(true)
     try {
-      const response = await fetch("http://localhost:8000/loc/predict", {
+      const response = await fetch("http://localhost:8000/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
