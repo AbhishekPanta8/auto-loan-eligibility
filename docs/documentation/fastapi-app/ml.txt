@@ -1,0 +1,69 @@
+Summary of the LOC Auto-Approval Model Implementation Rationale
+
+1. Overview
+The project automates Line of Credit (LOC) approval decisions using machine learning. It employs:
+
+Classification - to predict approval: yes/no.
+Regression - to estimate credit limit and interest rate for approved applicants.
+By automating these decisions, the organization aims to speed up processing.
+
+2. Data Preprocessing
+Missing Values:
+Median for numerical columns (robust to outliers, preserves typical values).
+Mode for categorical columns (fills gaps with the most common category).
+Feature Selection & Encoding:
+Kept features highly relevant to credit risk (e.g., credit score, income, debts).
+Dropped non-informative or redundant columns.
+Applied one-hot encoding for categorical variables to avoid imposing a false numeric order.
+Standardization:
+Scaled continuous variables (income, age, etc.) to have mean 0 and standard deviation 1.
+Aids models (like logistic regression) in converging faster and avoids dominance by large-scale features.
+
+3. Model Selection
+Three models each for classification (approval) and regression (credit limit, interest rate):
+
+Classification:
+
+Logistic Regression – Simple, interpretable, widely used for binary outcomes.
+Decision Tree – Captures non-linear relationships; easy to visualize. Prone to overfitting if not pruned.
+Random Forest – Ensemble of trees offering stronger predictive performance and reduced overfitting, at the cost of interpretability.
+Regression:
+
+Linear Regression – Straightforward baseline; interpretable coefficients but may underfit non-linear patterns.
+Decision Tree Regressor – Flexible rule-based structure for continuous targets; can capture thresholds, but also can overfit.
+Random Forest Regressor – Generally yields improved accuracy by averaging multiple trees; less transparent than a single tree.
+Interpretability vs. Accuracy:
+
+Simple models (logistic/linear) are more transparent but may underfit.
+Tree-based models can detect complex patterns but risk overfitting.
+Random forests often provide the highest accuracy, albeit at the cost of clarity in individual decisions.
+
+4. Training & Evaluation
+Train-Test Split (80/20): Allocates 80% of data for training, 20% for validation to ensure a robust performance estimate.
+Classification Metrics:
+Accuracy: Percentage of correct approval/denial predictions.
+AUC-ROC: Indicates the model’s ability to rank correct approvals over denials, helpful when data is imbalanced.
+Regression Metrics:
+MAE (Mean Absolute Error): Average absolute difference between predicted and actual values (in CAD or percentage).
+R²: Proportion of variance in the target explained by the model.
+Cross-Validation: Optionally used to tune hyperparameters and safeguard against overfitting.
+
+5. Model Performance & Interpretation
+Classification (Approval):
+
+Random Forest typically shows the highest accuracy/AUC due to ensemble averaging.
+Logistic Regression offers clear coefficients and easy compliance but may miss complex patterns.
+Decision Tree is interpretable through decision rules but can overfit if grown too deep.
+Regression (Credit Limit, Interest Rate):
+
+Random Forest Regressor often yields the lowest errors (MAE) and highest R² by capturing non-linearities.
+Decision Tree Regressor can find threshold-based patterns but risks overfitting.
+Linear Regression is a good baseline; high interpretability but may not capture interactions effectively.
+
+6. Future Improvements & Deployment
+Hyperparameter Tuning (e.g., tree depth, number of trees, regularization) can further enhance accuracy and prevent overfitting.
+Feature Engineering (e.g., debt-to-income ratios, polynomial transformations) may uncover hidden relationships.
+Alternate Models (gradient boosting, neural networks) could boost performance but potentially reduce interpretability.
+Thresholding & Business Rules can adjust acceptance rates to manage risk vs. approvals.
+Monitoring & Feedback Loop: Continuously track real-world outcomes (e.g., default rates, utilization) and retrain as data or conditions change.
+Overall, this approach successfully automates approval decisions, sets appropriate credit limits, and suggests interest rates. By balancing interpretability and accuracy, the system can be deployed confidently, with room for refinements as more data and business feedback become available.

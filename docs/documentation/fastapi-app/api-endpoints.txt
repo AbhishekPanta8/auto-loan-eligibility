@@ -1,0 +1,105 @@
+📝 API Endpoints
+
+1️⃣ Health Check
+Endpoint:
+
+GET / 
+
+Response:
+
+{
+    "message": "Loan Eligibility API is running"
+}
+
+2️⃣ Predict Loan Eligibility
+Endpoint:
+
+POST /predict/
+
+Request Body (JSON):
+
+{
+    "age": 30,
+    "employment_status": 2,
+    "annual_income": 75000,
+    "existing_debt": 10000,
+    "debt_to_income_ratio": 0.2,
+    "credit_score": 720,
+    "credit_history_length": 10,
+    "missed_payments": 0,
+    "loan_amount_requested": 20000,
+    "preferred_term_months": 36,
+    "collateral_available": 1
+}
+
+Response:
+
+{
+    "loan_approved": true,
+    "estimated_loan_amount": 19000.75,
+    "estimated_interest_rate": 5.2
+}
+
+📌 Notes:
+loan_approved: true/false, whether the loan is likely approved.
+estimated_loan_amount: Predicted approved loan amount.
+estimated_interest_rate: Predicted interest rate.
+
+🚀 Testing the API
+1️⃣ Using Swagger UI
+Open: http://localhost:8000/docs
+Click /predict/
+Fill in the request fields & hit Execute.
+
+2️⃣ Using Python Requests
+
+import requests
+
+API_URL = "http://localhost:8000/predict/"
+payload = {
+    "age": 30,
+    "employment_status": 2,
+    "annual_income": 75000,
+    "existing_debt": 10000,
+    "debt_to_income_ratio": 0.2,
+    "credit_score": 720,
+    "credit_history_length": 10,
+    "missed_payments": 0,
+    "loan_amount_requested": 20000,
+    "preferred_term_months": 36,
+    "collateral_available": 1
+}
+
+response = requests.post(API_URL, json=payload)
+print("Status Code:", response.status_code)
+print("Response JSON:", response.json())
+
+3️⃣ Running Multiple Test Cases
+
+test_cases = [
+    {"age": 25, "employment_status": 2, "annual_income": 100000, "existing_debt": 5000, "debt_to_income_ratio": 0.1, "credit_score": 780, "credit_history_length": 12, "missed_payments": 0, "loan_amount_requested": 30000, "preferred_term_months": 60, "collateral_available": 1},
+    {"age": 40, "employment_status": 1, "annual_income": 45000, "existing_debt": 20000, "debt_to_income_ratio": 0.5, "credit_score": 620, "credit_history_length": 8, "missed_payments": 3, "loan_amount_requested": 15000, "preferred_term_months": 24, "collateral_available": 0},
+]
+
+for i, test_case in enumerate(test_cases):
+    response = requests.post(API_URL, json=test_case)
+    print(f"\nTest Case {i+1}:")
+    print("Request:", test_case)
+    print("Response:", response.json())
+
+🔄 Error Handling
+1️⃣ Missing or Incorrect Input Format
+
+{
+    "detail": [
+        {
+            "loc": ["body", "age"],
+            "msg": "field required",
+            "type": "value_error.missing"
+        }
+    ]
+}
+
+📌 Fix: Ensure the request body includes all required fields.
+
+2️⃣ Server Error (500) If an internal error occurs, check FastAPI logs for debugging.

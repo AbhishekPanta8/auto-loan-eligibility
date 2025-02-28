@@ -1,0 +1,26 @@
+Creating venv and installing dependencies 
+    auto-loan-eligibility> $ cd backend/fastapi-app
+    - Might be python3 depending on python path var, but keep name venv to utilize current git ignore
+    auto-loan-eligibility/backend/fastapi-app> $ python -m venv venv
+    auto-loan-eligibility/backend/fastapi-app> $ venv/scripts/activate // (Windows)
+    auto-loan-eligibility/backend/fastapi-app> $ source venv/bin/activate // (MAC)
+    (venv) auto-loan-eligibility/backend/fastapi-app> $ pip install -r requirements.txt
+
+Create environment variables file 
+    (venv) auto-loan-eligibility/backend/fastapi-app> $ touch .env (will contain api keys later)
+
+- auto-loan-eligibility/backend/fastapi-app/models/*.pkl files should be added to the repo so you should be able to run the fastapi app in one terminal:
+ 
+    (venv) auto-loan-eligibility/backend/fastapi-app> $ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+- Then in another terminal, run  
+
+    auto-loan-eligibility/backend/fastapi-app> $ python tests/test_api.py
+
+- Which should sucesfully give output similar to:
+
+    Status Code: 200
+    Response JSON: {'loan_approved': True, 'estimated_loan_amount': 45296.75931912734, 'estimated_interest_rate': 8.422000000000002}
+
+
+
