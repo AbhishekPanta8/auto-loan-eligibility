@@ -119,7 +119,7 @@ export function LineOfCreditForm() {
                   Full Name
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-full-name">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -140,7 +140,7 @@ export function LineOfCreditForm() {
                   Your Age
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -160,41 +160,42 @@ export function LineOfCreditForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="province">
-                  Province
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Select your province of residence.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Select
-                  value={formData.province}
-                  onValueChange={(value) => handleChange("province", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ON">Ontario</SelectItem>
-                    <SelectItem value="BC">British Columbia</SelectItem>
-                    <SelectItem value="AB">Alberta</SelectItem>
-                    <SelectItem value="QC">Quebec</SelectItem>
-                    <SelectItem value="MB">Manitoba</SelectItem>
-                    <SelectItem value="SK">Saskatchewan</SelectItem>
-                    <SelectItem value="NS">Nova Scotia</SelectItem>
-                    <SelectItem value="NB">New Brunswick</SelectItem>
-                    <SelectItem value="NL">Newfoundland and Labrador</SelectItem>
-                    <SelectItem value="PE">Prince Edward Island</SelectItem>
-                    <SelectItem value="YT">Yukon</SelectItem>
-                    <SelectItem value="NT">Northwest Territories</SelectItem>
-                    <SelectItem value="NU">Nunavut</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="province">Province</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild data-testid="tooltip-trigger">
+                          <HelpCircle className="h-4 w-4 text-gray-400" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Select your province of residence.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <Select value={formData.province} onValueChange={(value) => handleChange("province", value)}>
+                    <SelectTrigger id="province" className="w-full">
+                      <SelectValue placeholder="Select your province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ON">Ontario</SelectItem>
+                      <SelectItem value="BC">British Columbia</SelectItem>
+                      <SelectItem value="AB">Alberta</SelectItem>
+                      <SelectItem value="QC">Quebec</SelectItem>
+                      <SelectItem value="MB">Manitoba</SelectItem>
+                      <SelectItem value="SK">Saskatchewan</SelectItem>
+                      <SelectItem value="NS">Nova Scotia</SelectItem>
+                      <SelectItem value="NB">New Brunswick</SelectItem>
+                      <SelectItem value="NL">Newfoundland and Labrador</SelectItem>
+                      <SelectItem value="PE">Prince Edward Island</SelectItem>
+                      <SelectItem value="YT">Yukon</SelectItem>
+                      <SelectItem value="NT">Northwest Territories</SelectItem>
+                      <SelectItem value="NU">Nunavut</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
               </div>
             </div>
           </div>
@@ -210,7 +211,7 @@ export function LineOfCreditForm() {
                   Employment Status
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -241,7 +242,7 @@ export function LineOfCreditForm() {
                   Months at Current Job
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -265,7 +266,7 @@ export function LineOfCreditForm() {
                   Annual Income (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -302,7 +303,7 @@ export function LineOfCreditForm() {
                   Monthly Expenses (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -331,7 +332,7 @@ export function LineOfCreditForm() {
                   Monthly Debt Payments (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -360,7 +361,7 @@ export function LineOfCreditForm() {
                   Estimated Monthly Debt from Other Banks (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -397,7 +398,7 @@ export function LineOfCreditForm() {
                   Credit Score
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -429,7 +430,7 @@ export function LineOfCreditForm() {
                   Credit Utilization (%)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -461,7 +462,7 @@ export function LineOfCreditForm() {
                   Payment History
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -491,7 +492,7 @@ export function LineOfCreditForm() {
                     Open Credit Accounts
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger asChild data-testid="tooltip-trigger">
                           <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -515,7 +516,7 @@ export function LineOfCreditForm() {
                     Recent Credit Inquiries
                     <TooltipProvider>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger asChild data-testid="tooltip-trigger">
                           <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                         </TooltipTrigger>
                         <TooltipContent>
@@ -540,7 +541,7 @@ export function LineOfCreditForm() {
                   Current Total Credit Limit (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -577,7 +578,7 @@ export function LineOfCreditForm() {
                   Requested Credit Limit (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
@@ -606,7 +607,7 @@ export function LineOfCreditForm() {
                   Expected Monthly Credit Usage (CAD)
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>

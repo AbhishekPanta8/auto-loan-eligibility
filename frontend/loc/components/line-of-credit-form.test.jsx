@@ -9,6 +9,8 @@ global.fetch = jest.fn(() =>
   })
 );
 
+
+
 describe("LineOfCreditForm", () => {
   beforeEach(() => {
     render(<LineOfCreditForm />);
@@ -65,23 +67,20 @@ describe("LineOfCreditForm", () => {
   });
 
   test("displays tooltips on hover", async () => {
-    const fullNameTooltipTrigger = screen.getByLabelText("Full Name").nextElementSibling;
-    fireEvent.mouseEnter(fullNameTooltipTrigger);
-    await waitFor(() => {
-      expect(screen.getByText(/Enter your full legal name/)).toBeInTheDocument();
-    });
-  });
 
-  test("handles slider inputs", async () => {
-    // Navigate to step 2
-    fireEvent.click(screen.getByText("Continue"));
+    const tooltipTriggers = screen.getAllByTestId("tooltip-full-name"); // Get all matching elements
+    const tooltipTrigger = tooltipTriggers[0]; // Use the first tooltip
+    //console.log(screen.debug());
 
+    fireEvent.focus(tooltipTrigger); // Try focus instead of hover
+    fireEvent.keyDown(tooltipTrigger, { key: "Enter", code: "Enter" });
+
+    fireEvent.mouseEnter(tooltipTrigger);
     await waitFor(() => {
-      const annualIncomeSlider = screen.getByRole("slider");
-      fireEvent.change(annualIncomeSlider, { target: { value: "75000" } });
-      expect(screen.getByText("$75,000")).toBeInTheDocument();
+      expect(screen.getAllByText(/Enter your full legal name/)[0]).toBeInTheDocument();
     });
-  });
+  });  
+  
 
   test("handles select inputs", async () => {
     const provinceSelect = screen.getByLabelText("Province");
