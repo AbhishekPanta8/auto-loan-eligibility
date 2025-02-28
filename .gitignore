@@ -22,5 +22,30 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
-
 node_modules/*
+=======
+#********** FastAPI ML App Files **********#
+# Ignore the virtual environment directory
+backend/fastapi_app/venv
+backend/fastapi_app/venv/
+backend/fastapi_app/venv/*
+
+# Ignore the environment variables file
+backend/fastapi_app/.env
+
+# Ignore compiled python files
+backend/fastapi_app/app/__pycache__
+backend/fastapi_app/app/routes/__pycache__
+backend/fastapi_app/app/schemas/__pycache__
+backend/fastapi_app/tests/__pycache__
+
+
+# Ignoring datasets, german numberic and train/test splits
+backend/fastapi_app/datasets
+backend/fastapi_app/datasets/
+backend/fastapi_app/datasets/*
+
+# Ignoring ML models - will manually upload best versions 
+backend/fastapi_app/models
+backend/fastapi_app/models/
+backend/fastapi_app/models/*
