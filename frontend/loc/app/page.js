@@ -1,5 +1,5 @@
 import Image from "next/image"
-// import { LineOfCreditForm } from "@/components/line-of-credit-form"
+import { LineOfCreditForm } from "@/components/line-of-credit-form"
 
 export default function Home() {
   return (
@@ -112,8 +112,7 @@ export default function Home() {
             Find out if you qualify for a TD Line of Credit and what your potential credit limit and interest rate might
             be.
           </p>
-
-          
+          <LineOfCreditForm />
         </div>
       </main>
 
