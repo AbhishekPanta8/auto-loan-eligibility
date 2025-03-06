@@ -42,9 +42,12 @@ backend/fastapi_app/tests/__pycache__
 
 
 # Ignoring datasets, german numberic and train/test splits
-backend/fastapi_app/datasets
-backend/fastapi_app/datasets/
-backend/fastapi_app/datasets/*
+# backend/fastapi_app/datasets
+# backend/fastapi_app/datasets/
+backend/fastapi_app/datasets/*.csv
+backend/fastapi_app/datasets/*.png
+backend/fastapi_app/datasets/*.txt
+backend/fastapi_app/datasets/splits
 
 # Ignoring ML models - will manually upload best versions 
 backend/fastapi_app/models
