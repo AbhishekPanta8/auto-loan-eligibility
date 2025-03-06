@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { HelpCircle, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
+import { HelpCircle, CheckCircle2, AlertCircle, Loader2, Info, ArrowRight } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
 export function LineOfCreditForm() {
@@ -747,6 +747,24 @@ export function LineOfCreditForm() {
             </Button>
           )}
         </CardFooter>
+      )}
+      
+      {step === 5 && (
+        <div className="mt-6 mx-auto max-w-md">
+          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-md p-4 flex items-start shadow-md animate-pulse">
+            <Info className="text-blue-500 mr-3 mt-0.5 h-5 w-5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-blue-700">Important</p>
+              <p className="text-blue-600 mt-1">
+                To get accurate results, you must login and verify your identity so we can securely fetch your financial data.
+              </p>
+              <div className="mt-2 flex items-center text-blue-700 font-medium">
+                <span>Verify now</span>
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </Card>
   );

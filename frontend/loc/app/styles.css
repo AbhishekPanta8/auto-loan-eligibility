@@ -1,0 +1,34 @@
+/* Flinks Connect styles */
+@media (min-width: 768px) {
+  .flinksconnect { 
+    width: 100%; 
+  }
+}
+
+/* Identity verification container styles */
+.identity-verification-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  align-items: center; /* Center children horizontally */
+}
+
+.identity-verification-container h2 {
+  margin-bottom: 16px;
+  text-align: center; /* Center the heading text */
+  width: 100%; /* Full width for proper alignment */
+}
+
+.iframe-container {
+  flex-grow: 1;
+  height: 760px; /* Match iframe height */
+  display: flex;
+  justify-content: center; /* Center iframe horizontally */
+  width: 100%; /* Full width container */
+}
+
+/* Make iframe responsive and centered */
+.flinksconnect {
+  max-width: 100%;
+  margin: 0 auto; /* Center the iframe */
+} 

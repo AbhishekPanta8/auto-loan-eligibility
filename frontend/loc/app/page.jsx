@@ -1,7 +1,30 @@
+"use client"
+
 import Image from "next/image"
 import { LineOfCreditForm } from "@/components/line-of-credit-form"
+import { useEffect, useState } from "react"
+import "./styles.css"
 
 export default function Home() {
+  // Use client-side only rendering for the Flinks iframe to avoid hydration issues
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    
+    // Add event listener for Flinks messages
+    const handleFlinksMessage = (e) => {
+      console.log(e.data);
+    };
+    
+    window.addEventListener('message', handleFlinksMessage);
+    
+    // Clean up event listener on unmount
+    return () => {
+      window.removeEventListener('message', handleFlinksMessage);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-[#3d8b37] text-white py-4">
@@ -104,14 +127,33 @@ export default function Home() {
         </div>
       </nav>
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">Line of Credit Pre-Qualification</h1>
           <p className="text-gray-600 mb-8 text-center">
             Find out if you qualify for a TD Line of Credit and what your potential credit limit and interest rate might
             be.
           </p>
 
-          <LineOfCreditForm />
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-[3]">
+              <LineOfCreditForm />
+            </div>
+            
+            <div className="flex-1 border rounded-lg shadow-md p-4 bg-white identity-verification-container">
+              <h2 className="text-2xl font-semibold text-gray-800">Verify Your Identity</h2>
+              
+              {/* Flinks Connect - Only render on client side to avoid hydration mismatch */}
+              <div className="iframe-container">
+                {isMounted && (
+                  <iframe 
+                    className="flinksconnect"
+                    height="760"
+                    src="https://demo.flinks.com/v2/?customerName=Demo+Company">
+                  </iframe>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
       <footer className="mt-16">
