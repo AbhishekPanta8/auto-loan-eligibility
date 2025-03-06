@@ -11,6 +11,7 @@
   flex-direction: column;
   height: 100%;
   align-items: center; /* Center children horizontally */
+  min-height: 800px; /* Set minimum height to match form */
 }
 
 .identity-verification-container h2 {
@@ -24,6 +25,7 @@
   height: 760px; /* Match iframe height */
   display: flex;
   justify-content: center; /* Center iframe horizontally */
+  align-items: center; /* Center iframe vertically */
   width: 100%; /* Full width container */
 }
 
@@ -31,4 +33,23 @@
 .flinksconnect {
   max-width: 100%;
   margin: 0 auto; /* Center the iframe */
+}
+
+/* Verification success message styles */
+.verification-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  max-width: 400px; /* Limit width for better readability */
+  padding: 0 16px; /* Add padding for smaller screens */
+}
+
+/* Form container styles to match identity verification container */
+.form-container {
+  min-height: 800px; /* Match height with identity verification container */
+  display: flex;
+  flex-direction: column;
 } 

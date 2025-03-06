@@ -5,16 +5,39 @@ import { LineOfCreditForm } from "@/components/line-of-credit-form"
 import { useEffect, useState } from "react"
 import "./styles.css"
 
+// Define constant for Flinks URL to ensure consistency
+const FLINKS_URL = "https://demo.flinks.com/v2/?demo=true&customerName=Demo+Company";
+
 export default function Home() {
   // Use client-side only rendering for the Flinks iframe to avoid hydration issues
   const [isMounted, setIsMounted] = useState(false);
+  const [flinksLoginId, setFlinksLoginId] = useState(null);
+  const [isVerified, setIsVerified] = useState(false);
 
+  // Load loginId from localStorage on component mount
   useEffect(() => {
     setIsMounted(true);
+    
+    // Check if loginId exists in localStorage
+    const storedLoginId = localStorage.getItem('flinksLoginId');
+    if (storedLoginId) {
+      setFlinksLoginId(storedLoginId);
+      setIsVerified(true);
+    }
     
     // Add event listener for Flinks messages
     const handleFlinksMessage = (e) => {
       console.log(e.data);
+      
+      // Check if the message contains loginId
+      if (e.data && e.data.loginId) {
+        const loginId = e.data.loginId;
+        setFlinksLoginId(loginId);
+        setIsVerified(true);
+        
+        // Store loginId in localStorage
+        localStorage.setItem('flinksLoginId', loginId);
+      }
     };
     
     window.addEventListener('message', handleFlinksMessage);
@@ -24,6 +47,16 @@ export default function Home() {
       window.removeEventListener('message', handleFlinksMessage);
     };
   }, []);
+  
+  // Function to unlink the account
+  const handleUnlink = () => {
+    // Remove loginId from localStorage
+    localStorage.removeItem('flinksLoginId');
+    
+    // Reset state
+    setFlinksLoginId(null);
+    setIsVerified(false);
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -135,21 +168,61 @@ export default function Home() {
           </p>
 
           <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-[3]">
-              <LineOfCreditForm />
+            <div className="flex-[3] form-container">
+              {isVerified && (
+                <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4 rounded-md">
+                  <p className="text-green-700 font-medium">
+                    Your identity has been verified. Your data will be automatically verified during application submission.
+                  </p>
+                </div>
+              )}
+              <LineOfCreditForm flinksLoginId={flinksLoginId} isVerified={isVerified} />
             </div>
             
             <div className="flex-1 border rounded-lg shadow-md p-4 bg-white identity-verification-container">
-              <h2 className="text-2xl font-semibold text-gray-800">Verify Your Identity</h2>
+              <div className="flex justify-between items-center mb-4 w-full">
+                <h2 className="text-2xl font-semibold text-gray-800">
+                  {isVerified ? "Identity Verified ✓" : "Verify Your Identity"}
+                </h2>
+                
+                {isVerified && (
+                  <button 
+                    onClick={handleUnlink}
+                    className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7L7 13m0-6l6 6m4-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Unlink Account
+                  </button>
+                )}
+              </div>
               
               {/* Flinks Connect - Only render on client side to avoid hydration mismatch */}
               <div className="iframe-container">
-                {isMounted && (
+                {isMounted && !isVerified && (
                   <iframe 
                     className="flinksconnect"
                     height="760"
-                    src="https://demo.flinks.com/v2/?customerName=Demo+Company">
+                    src={FLINKS_URL}>
                   </iframe>
+                )}
+                
+                {isVerified && (
+                  <div className="verification-success">
+                    <div className="bg-green-100 p-6 rounded-full mb-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="text-xl font-medium text-green-700 mb-2">Identity Verified Successfully</p>
+                    <p className="text-gray-600 text-center mb-4">
+                      Your financial data has been securely retrieved and will be used to enhance your application.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Login ID: {flinksLoginId ? flinksLoginId.substring(0, 8) + '...' : ''}
+                    </p>
+                  </div>
                 )}
               </div>
             </div>

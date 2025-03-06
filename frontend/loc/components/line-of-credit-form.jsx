@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { HelpCircle, CheckCircle2, AlertCircle, Loader2, Info, ArrowRight } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 
-export function LineOfCreditForm() {
+export function LineOfCreditForm({ flinksLoginId, isVerified }) {
   const [step, setStep] = useState(1)
   const [progress, setProgress] = useState(20)
   const [loading, setLoading] = useState(false)
@@ -35,7 +35,27 @@ export function LineOfCreditForm() {
     current_credit_limit: 5000,
     monthly_expenses: 2000,
     estimated_debt: 0,
+    flinks_login_id: null,
   })
+
+  useEffect(() => {
+    if (flinksLoginId) {
+      setFormData(prevData => ({
+        ...prevData,
+        flinks_login_id: flinksLoginId
+      }));
+    }
+  }, [flinksLoginId]);
+
+  useEffect(() => {
+    const storedLoginId = localStorage.getItem('flinksLoginId');
+    if (storedLoginId && !formData.flinks_login_id) {
+      setFormData(prevData => ({
+        ...prevData,
+        flinks_login_id: storedLoginId
+      }));
+    }
+  }, []);
 
   const handleChange = (field, value) => {
     setFormData({
@@ -59,6 +79,8 @@ export function LineOfCreditForm() {
   const handleSubmit = async () => {
     setLoading(true)
     try {
+      console.log("Submitting form data:", formData);
+      
       const response = await fetch("http://localhost:8000/predict", {
         method: "POST",
         headers: {
@@ -91,7 +113,7 @@ export function LineOfCreditForm() {
   }
 
   return (
-    <Card className="w-full">
+    <Card className="shadow-md h-full">
       <CardHeader>
         <CardTitle className="text-[#3d8b37]">Line of Credit Application</CardTitle>
         <CardDescription>Complete the form below to check your eligibility for a TD Line of Credit</CardDescription>
@@ -747,24 +769,6 @@ export function LineOfCreditForm() {
             </Button>
           )}
         </CardFooter>
-      )}
-      
-      {step === 5 && (
-        <div className="mt-6 mx-auto max-w-md">
-          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-md p-4 flex items-start shadow-md animate-pulse">
-            <Info className="text-blue-500 mr-3 mt-0.5 h-5 w-5 flex-shrink-0" />
-            <div>
-              <p className="font-medium text-blue-700">Important</p>
-              <p className="text-blue-600 mt-1">
-                To get accurate results, you must login and verify your identity so we can securely fetch your financial data.
-              </p>
-              <div className="mt-2 flex items-center text-blue-700 font-medium">
-                <span>Verify now</span>
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </Card>
   );
