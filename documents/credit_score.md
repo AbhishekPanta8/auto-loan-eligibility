@@ -93,6 +93,7 @@ Set Up a Custom API Integration - Only to show TD bank for login, not recommende
 Using Flinks Connect or Using Flinks Express
 ## Flinks Connect
 https://docs.flinks.com/docs/set-up-flinks-connect
+https://docs.flinks.com/docs/connect-new-accounts
 
 ## Conclusion
 
