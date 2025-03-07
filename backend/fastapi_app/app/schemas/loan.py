@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class LoanApplication(BaseModel):
     full_name: str
@@ -23,3 +24,28 @@ class LoanApplication(BaseModel):
     requested_amount: float  # Renamed from `loan_amount_requested`
     preferred_term_months: int  # Previously missing
     collateral_available: int  # Previously missing
+    
+    # New fields for Equifax integration
+    equifax_consent: bool = False  # Whether the user consents to Equifax credit check
+    sin: Optional[str] = None  # Social Insurance Number (required for Equifax API)
+    date_of_birth: Optional[str] = None  # Date of birth in YYYY-MM-DD format
+    street_address: Optional[str] = None  # Street address
+    city: Optional[str] = None  # City
+    postal_code: Optional[str] = None  # Postal code
+    
+class CreditReport(BaseModel):
+    credit_score: int
+    credit_history_length: int
+    missed_payments: int
+    credit_utilization: float
+    open_accounts: int
+    credit_inquiries: int
+    payment_history: str
+    total_credit_limit: float
+    total_debt: float
+    
+class LoanPredictionResponse(BaseModel):
+    loan_approved: bool
+    approved_amount: float
+    interest_rate: float
+    credit_report: Optional[CreditReport] = None
