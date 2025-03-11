@@ -708,8 +708,8 @@ export function LineOfCreditForm() {
                     This doesn't mean you won't qualify for a line of credit.
                   </p>
                   <div className="flex flex-col space-y-4">
-                    <Button className="bg-[#3d8b37] hover:bg-[#2d6a27]">Speak with a TD Financial Advisor</Button>
-                    <Button variant="outline">Learn How to Improve Your Application</Button>
+                    <Button className="bg-[#3d8b37] hover:bg-[#2d6a27]" onClick={() => window.open("https://www.td.com/ca/en/investing/wealth/financial-planning", "_blank")}>Speak with a TD Financial Advisor</Button>
+                    <Button variant="outline" onClick={() => window.open("https://www.td.com/ca/en/personal-banking/products/borrowing/lines-of-credit", "_blank")}>Learn How to Improve Your Application</Button>
                   </div>
                 </>
               )}
