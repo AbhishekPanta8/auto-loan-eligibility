@@ -54,4 +54,5 @@ backend/fastapi_app/models
 backend/fastapi_app/models/
 backend/fastapi_app/models/*
 
+.venv
 .env
