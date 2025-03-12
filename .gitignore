@@ -29,6 +29,7 @@ node_modules/*
 backend/fastapi_app/venv
 backend/fastapi_app/venv/
 backend/fastapi_app/venv/*
+backend/fastapi_app/.venv/*
 
 # Ignore the environment variables file
 backend/fastapi_app/.env
@@ -52,3 +53,5 @@ backend/fastapi_app/datasets/splits
 backend/fastapi_app/models
 backend/fastapi_app/models/
 backend/fastapi_app/models/*
+
+.env

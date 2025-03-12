@@ -16,25 +16,41 @@ export function LineOfCreditForm() {
   const [progress, setProgress] = useState(20)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [apiError, setApiError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
 
   const [formData, setFormData] = useState({
     full_name: "",
-    self_reported_expenses: 0,
-    credit_score: 700,
-    annual_income: 50000,
-    self_reported_debt: 0,
-    requested_amount: 10000,
     age: 30,
     province: "ON",
     employment_status: "Full-time",
     months_employed: 12,
+    annual_income: 50000,
+    self_reported_debt: 0,
+    debt_to_income_ratio: 0,
+    credit_score: 700,
+    credit_history_length: 60,
+    missed_payments: 0,
     credit_utilization: 30,
     num_open_accounts: 2,
     num_credit_inquiries: 1,
     payment_history: "On Time",
     current_credit_limit: 5000,
     monthly_expenses: 2000,
+    self_reported_expenses: 2000,
     estimated_debt: 0,
+    requested_amount: 10000,
+    preferred_term_months: 36,
+    collateral_available: 0,
+    equifax_consent: false,
+    sin: "",
+    date_of_birth: "",
+    street_address: "",
+    city: "",
+    postal_code: "",
+    house_number: "",
+    street_name: "",
+    street_type: "ST",
   })
 
   const handleChange = (field, value) => {
@@ -58,8 +74,10 @@ export function LineOfCreditForm() {
 
   const handleSubmit = async () => {
     setLoading(true)
+    setApiError(false)
+    setErrorMessage("")
     try {
-      const response = await fetch("http://localhost:8000/predict", {
+      const response = await fetch("http://localhost:8000/predict/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -67,12 +85,31 @@ export function LineOfCreditForm() {
         body: JSON.stringify(formData),
       })
 
+      if (!response.ok) {
+        setApiError(true)
+        if (response.status === 422) {
+          const errorData = await response.json()
+          setErrorMessage("Validation error: Please check your input data.")
+          console.error("Validation error:", errorData)
+        } else {
+          setErrorMessage(`Server responded with status: ${response.status}`)
+        }
+        throw new Error(`Server responded with status: ${response.status}`)
+      }
+
       const data = await response.json()
       setResult(data)
-      setStep(6)
+      setStep(7)
       setProgress(100)
     } catch (error) {
       console.error("Error submitting form:", error)
+      setApiError(true)
+      if (!errorMessage) {
+        setErrorMessage("Network error: Unable to connect to the server. Please check your internet connection and try again.")
+      }
+      setResult(null)
+      setStep(7)
+      setProgress(100)
     } finally {
       setLoading(false)
     }
@@ -88,6 +125,47 @@ export function LineOfCreditForm() {
 
   const formatPercent = (value) => {
     return `${value}%`
+  }
+
+  const resetForm = () => {
+    setStep(1)
+    setProgress(20)
+    setResult(null)
+    setApiError(false)
+    setErrorMessage("")
+    setFormData({
+      full_name: "",
+      age: 30,
+      province: "ON",
+      employment_status: "Full-time",
+      months_employed: 12,
+      annual_income: 50000,
+      self_reported_debt: 0,
+      debt_to_income_ratio: 0,
+      credit_score: 700,
+      credit_history_length: 60,
+      missed_payments: 0,
+      credit_utilization: 30,
+      num_open_accounts: 2,
+      num_credit_inquiries: 1,
+      payment_history: "On Time",
+      current_credit_limit: 5000,
+      monthly_expenses: 2000,
+      self_reported_expenses: 2000,
+      estimated_debt: 0,
+      requested_amount: 10000,
+      preferred_term_months: 36,
+      collateral_available: 0,
+      equifax_consent: false,
+      sin: "",
+      date_of_birth: "",
+      street_address: "",
+      city: "",
+      postal_code: "",
+      house_number: "",
+      street_name: "",
+      street_type: "ST",
+    })
   }
 
   return (
@@ -203,98 +281,6 @@ export function LineOfCreditForm() {
 
         {step === 2 && (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium">Employment & Income Information</h3>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="employment_status">
-                  Employment Status
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild data-testid="tooltip-trigger">
-                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Select your current employment status.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Select
-                  value={formData.employment_status}
-                  onValueChange={(value) => handleChange("employment_status", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select your employment status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Full-time">Full-time</SelectItem>
-                    <SelectItem value="Part-time">Part-time</SelectItem>
-                    <SelectItem value="Unemployed">Unemployed</SelectItem>
-                    <SelectItem value="Self-employed">Self-employed</SelectItem>
-                    <SelectItem value="Retired">Retired</SelectItem>
-                    <SelectItem value="Student">Student</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="months_employed">
-                  Months at Current Job
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild data-testid="tooltip-trigger">
-                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Enter the number of months you've been at your current job. Enter 0 if unemployed.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <Input
-                  id="months_employed"
-                  type="number"
-                  min={0}
-                  max={600}
-                  placeholder="Enter months employed"
-                  value={formData.months_employed}
-                  onChange={(e) => handleChange("months_employed", Number.parseInt(e.target.value))} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="annual_income">
-                  Annual Income (CAD)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild data-testid="tooltip-trigger">
-                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Enter your total yearly income including side income.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </Label>
-                <div className="space-y-3">
-                  <Slider
-                    min={20000}
-                    max={200000}
-                    step={1000}
-                    value={[formData.annual_income]}
-                    onValueChange={(value) => handleChange("annual_income", value[0])} />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-500">$20,000</span>
-                    <span className="font-medium">{formatCurrency(formData.annual_income)}</span>
-                    <span className="text-sm text-gray-500">$200,000</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="space-y-6">
             <h3 className="text-lg font-medium">Financial Information</h3>
 
             <div className="space-y-4">
@@ -381,6 +367,98 @@ export function LineOfCreditForm() {
                     <span className="text-sm text-gray-500">$0</span>
                     <span className="font-medium">{formatCurrency(formData.estimated_debt)}</span>
                     <span className="text-sm text-gray-500">$10,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium">Employment & Income Information</h3>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="employment_status">
+                  Employment Status
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
+                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Select your current employment status.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Select
+                  value={formData.employment_status}
+                  onValueChange={(value) => handleChange("employment_status", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select your employment status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Full-time">Full-time</SelectItem>
+                    <SelectItem value="Part-time">Part-time</SelectItem>
+                    <SelectItem value="Unemployed">Unemployed</SelectItem>
+                    <SelectItem value="Self-employed">Self-employed</SelectItem>
+                    <SelectItem value="Retired">Retired</SelectItem>
+                    <SelectItem value="Student">Student</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="months_employed">
+                  Months at Current Job
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
+                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter the number of months you've been at your current job. Enter 0 if unemployed.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <Input
+                  id="months_employed"
+                  type="number"
+                  min={0}
+                  max={600}
+                  placeholder="Enter months employed"
+                  value={formData.months_employed}
+                  onChange={(e) => handleChange("months_employed", Number.parseInt(e.target.value))} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="annual_income">
+                  Annual Income (CAD)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild data-testid="tooltip-trigger">
+                        <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter your total yearly income including side income.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+                <div className="space-y-3">
+                  <Slider
+                    min={20000}
+                    max={200000}
+                    step={1000}
+                    value={[formData.annual_income]}
+                    onValueChange={(value) => handleChange("annual_income", value[0])} />
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-500">$20,000</span>
+                    <span className="font-medium">{formatCurrency(formData.annual_income)}</span>
+                    <span className="text-sm text-gray-500">$200,000</span>
                   </div>
                 </div>
               </div>
@@ -630,124 +708,284 @@ export function LineOfCreditForm() {
                   </div>
                 </div>
               </div>
-
-              <div className="bg-[#f0f7ef] p-4 rounded-lg border border-[#3d8b37] mt-4">
-                <h3 className="font-medium text-[#3d8b37] flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5" />
-                  Review Your Application
-                </h3>
-                <p className="mt-2 text-sm">
-                  Please review all the information you've provided before submitting. By clicking "Submit Application",
-                  you authorize TD Bank to perform a credit check and process your application.
-                </p>
-              </div>
             </div>
           </div>
         )}
 
-        {step === 6 && result && (
+        {step === 6 && (
           <div className="space-y-6">
-            <div
-              className={`p-4 rounded-lg border ${result.approved === 1 ? "bg-[#f0f7ef] border-[#3d8b37]" : "bg-gray-100 border-gray-300"}`}>
-              <h3
-                className={`font-medium flex items-center gap-2 ${result.approved === 1 ? "text-[#3d8b37]" : "text-gray-700"}`}>
-                {result.approved === 1 ? (
-                  <>
-                    <CheckCircle2 className="h-5 w-5" />
-                    Congratulations! Your application is pre-approved
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle className="h-5 w-5" />
-                    We're unable to pre-approve your application at this time
-                  </>
-                )}
+            <div className="bg-[#f0f7ef] p-4 rounded-lg border border-[#3d8b37] mb-6">
+              <h3 className="font-medium text-[#3d8b37] flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5" />
+                Credit Check Authorization
               </h3>
+              <p className="mt-2 text-sm">
+                To provide you with the most accurate pre-qualification results, we can check your credit score through Equifax's Pre-Approval of One service. This will not impact your credit score.
+              </p>
             </div>
 
-            {result.approved === 1 && (
-              <div className="grid md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Credit Limit</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-bold text-[#3d8b37]">{formatCurrency(result.approved_amount)}</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Interest Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-bold text-[#3d8b37]">{result.interest_rate.toFixed(2)}%</p>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
             <div className="space-y-4">
-              {result.approved === 1 ? (
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="equifax_consent"
+                  className="mt-1"
+                  checked={formData.equifax_consent}
+                  onChange={(e) => handleChange("equifax_consent", e.target.checked)}
+                />
+                <Label htmlFor="equifax_consent" className="font-medium">
+                  I authorize TD Bank to check my credit through Equifax's Pre-Approval of One service
+                </Label>
+              </div>
+
+              {formData.equifax_consent && (
                 <>
-                  <p>
-                    Based on the information you've provided, we're pleased to offer you a TD Line of Credit. This is a
-                    pre-approval and is subject to verification of the information provided.
-                  </p>
-                  <div className="flex flex-col space-y-4">
-                    <Button className="bg-[#3d8b37] hover:bg-[#2d6a27]">
-                      Schedule an Appointment to Complete Your Application
-                    </Button>
-                    <Button variant="outline">Save Your Pre-Approval for Later</Button>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sin">Social Insurance Number (SIN)</Label>
+                      <Input
+                        id="sin"
+                        placeholder="Enter your SIN"
+                        value={formData.sin}
+                        onChange={(e) => handleChange("sin", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="date_of_birth">Date of Birth</Label>
+                      <Input
+                        id="date_of_birth"
+                        type="date"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleChange("date_of_birth", e.target.value)}
+                      />
+                    </div>
                   </div>
-                </>
-              ) : (
-                <>
-                  <p>
-                    Based on the information you've provided, we're unable to pre-approve your application at this time.
-                    This doesn't mean you won't qualify for a line of credit.
-                  </p>
-                  <div className="flex flex-col space-y-4">
-                    <Button className="bg-[#3d8b37] hover:bg-[#2d6a27]">Speak with a TD Financial Advisor</Button>
-                    <Button variant="outline">Learn How to Improve Your Application</Button>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="house_number">House Number</Label>
+                      <Input
+                        id="house_number"
+                        placeholder="123"
+                        value={formData.house_number}
+                        onChange={(e) => handleChange("house_number", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="street_name">Street Name</Label>
+                      <Input
+                        id="street_name"
+                        placeholder="Main"
+                        value={formData.street_name}
+                        onChange={(e) => handleChange("street_name", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="street_type">Street Type</Label>
+                      <Select
+                        value={formData.street_type}
+                        onValueChange={(value) => handleChange("street_type", value)}
+                      >
+                        <SelectTrigger id="street_type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ST">Street (ST)</SelectItem>
+                          <SelectItem value="AV">Avenue (AV)</SelectItem>
+                          <SelectItem value="RD">Road (RD)</SelectItem>
+                          <SelectItem value="DR">Drive (DR)</SelectItem>
+                          <SelectItem value="CR">Crescent (CR)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
+                      <Input
+                        id="city"
+                        placeholder="Toronto"
+                        value={formData.city}
+                        onChange={(e) => handleChange("city", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="postal_code">Postal Code</Label>
+                      <Input
+                        id="postal_code"
+                        placeholder="A1B 2C3"
+                        value={formData.postal_code}
+                        onChange={(e) => handleChange("postal_code", e.target.value)}
+                      />
+                    </div>
                   </div>
                 </>
               )}
             </div>
+          </div>
+        )}
+
+        {step === 7 && (
+          <div className="space-y-6">
+            {apiError ? (
+              <div className="p-6 rounded-lg border bg-yellow-50 border-yellow-200">
+                <h3 className="text-xl font-bold mb-2 text-yellow-700">
+                  Server Error
+                </h3>
+                <p className="text-gray-700 mb-4">
+                  {errorMessage || "We're experiencing technical difficulties connecting to our server. Please try again later or contact customer support if the problem persists."}
+                </p>
+                <div className="mt-6">
+                  <div className="space-y-4">
+                    <Button
+                      className="w-full bg-[#3d8b37] hover:bg-[#2c6428]"
+                      onClick={() => {
+                        setApiError(false)
+                        setErrorMessage("")
+                        setStep(6)
+                        setProgress(80)
+                      }}
+                    >
+                      Try Again
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : result && (
+              <>
+                <div className={`p-6 rounded-lg border ${result.loan_approved ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
+                  <h3 className={`text-xl font-bold mb-2 ${result.loan_approved ? "text-green-700" : "text-red-700"}`}>
+                    {result.loan_approved ? "Congratulations! You Pre-Qualify" : "We're Sorry"}
+                  </h3>
+                  <p className="text-gray-700 mb-4">
+                    {result.loan_approved
+                      ? `Based on the information provided, you pre-qualify for a line of credit up to ${formatCurrency(result.approved_amount)}.`
+                      : "Based on the information provided, we are unable to pre-qualify you for a line of credit at this time."}
+                  </p>
+
+                  {result.loan_approved && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Pre-Qualified Amount</p>
+                          <p className="text-xl font-bold text-[#3d8b37]">{formatCurrency(result.approved_amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Estimated Interest Rate</p>
+                          <p className="text-xl font-bold text-[#3d8b37]">{formatPercent(result.interest_rate)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {formData.equifax_consent && result.credit_report && (
+                  <div className="mt-6 p-6 rounded-lg border border-blue-200 bg-blue-50">
+                    <h3 className="text-xl font-bold mb-4 text-blue-700">Your Credit Report Summary</h3>
+                    <p className="text-gray-700 mb-4">
+                      This information was obtained from Equifax's Pre-Approval of One service and did not impact your credit score.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-sm text-gray-500">Credit Score</p>
+                        <p className="text-xl font-bold">{result.credit_report.credit_score}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Credit History Length</p>
+                        <p className="text-xl font-bold">{result.credit_report.credit_history_length} months</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Missed Payments</p>
+                        <p className="text-xl font-bold">{result.credit_report.missed_payments}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Credit Utilization</p>
+                        <p className="text-xl font-bold">{formatPercent(result.credit_report.credit_utilization)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Open Accounts</p>
+                        <p className="text-xl font-bold">{result.credit_report.open_accounts}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Recent Credit Inquiries</p>
+                        <p className="text-xl font-bold">{result.credit_report.credit_inquiries}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Payment History</p>
+                        <p className="text-xl font-bold">{result.credit_report.payment_history}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total Credit Limit</p>
+                        <p className="text-xl font-bold">{formatCurrency(result.credit_report.total_credit_limit)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  {result.loan_approved ? (
+                    <div className="space-y-4">
+                      <p className="text-gray-700">
+                        To proceed with your application, please visit your nearest TD branch or call us at 1-800-555-1234.
+                      </p>
+                      <Button className="w-full bg-[#3d8b37] hover:bg-[#2c6428]">
+                        Schedule an Appointment
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-gray-700">
+                        We recommend improving your credit score and reducing your debt before applying again. Our financial advisors can help you create a plan.
+                      </p>
+                      <Button className="w-full bg-[#3d8b37] hover:bg-[#2c6428]">
+                        Speak with a Financial Advisor
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </CardContent>
-      {step < 6 && (
-        <CardFooter className="flex justify-between">
-          {step > 1 ? (
-            <Button variant="outline" onClick={prevStep}>
-              Back
-            </Button>
-          ) : (
-            <div></div>
-          )}
-
-          {step < 5 ? (
-            <Button className="bg-[#3d8b37] hover:bg-[#2d6a27]" onClick={nextStep}>
-              Continue
-            </Button>
-          ) : (
-            <Button
-              className="bg-[#3d8b37] hover:bg-[#2d6a27]"
-              onClick={handleSubmit}
-              disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing
-                </>
-              ) : (
-                "Submit Application"
-              )}
-            </Button>
-          )}
-        </CardFooter>
-      )}
+      <CardFooter className="flex justify-between">
+        {step > 1 && step < 7 && (
+          <Button variant="outline" onClick={prevStep}>
+            Back
+          </Button>
+        )}
+        {step < 6 && (
+          <Button className="ml-auto bg-[#3d8b37] hover:bg-[#2c6428]" onClick={nextStep}>
+            Next
+          </Button>
+        )}
+        {step === 6 && (
+          <Button
+            className="ml-auto bg-[#3d8b37] hover:bg-[#2c6428]"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing
+              </>
+            ) : (
+              "Submit Application"
+            )}
+          </Button>
+        )}
+        {step === 7 && (
+          <Button
+            variant="outline"
+            onClick={resetForm}
+          >
+            Start New Application
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   );
 }

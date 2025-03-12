@@ -1,211 +1,320 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import numpy as np
+import os
+import joblib
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import accuracy_score, roc_auc_score, classification_report, mean_absolute_error, r2_score
+from sklearn.impute import SimpleImputer
 
-###############################
-# 1. Data Loading and Preprocessing
-###############################
+def create_model_directory():
+    """Create directory to save trained models if it doesn't exist"""
+    model_dir = os.path.join(os.path.dirname(__file__), 'models')
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    return model_dir
 
-# Load the dataset (replace 'loc_data.csv' with the actual file path or DataFrame)
-df = pd.read_csv('loc_data.csv')
+def load_and_preprocess_data(file_path):
+    """Load and preprocess the dataset"""
+    print(f"Loading data from {file_path}...")
+    df = pd.read_csv(file_path)
+    
+    # Print available columns to help with debugging
+    print("\nAvailable columns in the dataset:")
+    print(df.columns.tolist())
+    
+    # Identify column types
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+    
+    # Handle missing values - avoiding chained assignment warnings
+    # For numeric columns
+    for col in numeric_cols:
+        df.loc[:, col] = df[col].fillna(df[col].median())
+    
+    # For categorical columns
+    for col in categorical_cols:
+        if not df[col].mode().empty:
+            df.loc[:, col] = df[col].fillna(df[col].mode()[0])
+    
+    return df, numeric_cols, categorical_cols
 
-# Handle missing values:
-# - For numerical columns: fill with median.
-# - For categorical columns: fill with mode (most frequent).
-numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
-categorical_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+def prepare_features_targets(df, features, target_col, categorical_cols, encode_target=None):
+    """Prepare features and target for modeling with proper encoding"""
+    # Validate target column exists
+    if target_col not in df.columns:
+        raise ValueError(f"Target column '{target_col}' not found in DataFrame. Available columns: {df.columns.tolist()}")
+    
+    # Extract features and target
+    X = df[features].copy()
+    y = df[target_col].copy()
+    
+    # Encode target if needed
+    if encode_target and y.dtype == 'object':
+        y = y.map(encode_target)
+    
+    return X, y
 
-for col in numeric_cols:
-    df[col].fillna(df[col].median(), inplace=True)
-for col in categorical_cols:
-    if not df[col].mode().empty:
-        df[col].fillna(df[col].mode()[0], inplace=True)
+def encode_and_scale_features(X_train, X_test, categorical_cols, numeric_cols):
+    """One-hot encode categorical features and scale numeric features"""
+    # One-hot encode categorical features
+    cat_features = [col for col in categorical_cols if col in X_train.columns]
+    X_train_encoded = pd.get_dummies(X_train, columns=cat_features, drop_first=True)
+    X_test_encoded = pd.get_dummies(X_test, columns=cat_features, drop_first=True)
+    
+    # Ensure test set has same columns as train set
+    X_test_encoded = X_test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
+    
+    # Scale numeric features
+    scaler = StandardScaler()
+    numeric_features = [col for col in X_train_encoded.columns if col in numeric_cols or 
+                       (col not in cat_features and not any(col.startswith(c + '_') for c in cat_features))]
+    
+    if numeric_features:
+        X_train_encoded[numeric_features] = scaler.fit_transform(X_train_encoded[numeric_features])
+        X_test_encoded[numeric_features] = scaler.transform(X_test_encoded[numeric_features])
+    
+    return X_train_encoded, X_test_encoded, scaler
 
-# Define target columns
-target_cols = ['ApprovalStatus', 'CreditLimit', 'InterestRate']
+def train_evaluate_classification(X_train, X_test, y_train, y_test):
+    """Train and evaluate classification models with cross-validation"""
+    models = {
+        'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42),
+        'Decision Tree': DecisionTreeClassifier(random_state=42),
+        'Random Forest': RandomForestClassifier(random_state=42, n_estimators=100)
+    }
+    
+    results = {}
+    best_model = None
+    best_auc = 0
+    
+    print("\n----- Approval Status Prediction (Classification) -----")
+    
+    for name, model in models.items():
+        # Cross-validation
+        cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
+        
+        # Train on full training set
+        model.fit(X_train, y_train)
+        
+        # Predictions
+        y_pred = model.predict(X_test)
+        y_proba = model.predict_proba(X_test)[:, 1]
+        
+        # Metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        auc = roc_auc_score(y_test, y_proba)
+        
+        # Store results
+        results[name] = {
+            'model': model,
+            'cv_accuracy': np.mean(cv_scores),
+            'test_accuracy': accuracy,
+            'auc': auc
+        }
+        
+        # Print results
+        print(f"{name} - CV Accuracy: {np.mean(cv_scores):.3f}, Test Accuracy: {accuracy:.3f}, AUC: {auc:.3f}")
+        
+        # Track best model
+        if auc > best_auc:
+            best_auc = auc
+            best_model = model
+    
+    # Print detailed report for best model
+    best_model_name = max(results.items(), key=lambda x: x[1]['auc'])[0]
+    y_pred_best = results[best_model_name]['model'].predict(X_test)
+    print(f"\nClassification Report ({best_model_name}):")
+    print(classification_report(y_test, y_pred_best))
+    
+    return results, best_model
 
-# Define feature columns (exclude target columns)
-features = [col for col in df.columns if col not in target_cols]
+def train_evaluate_regression(X_train, X_test, y_train, y_test, target_name):
+    """Train and evaluate regression models with cross-validation"""
+    models = {
+        'Linear Regression': LinearRegression(),
+        'Decision Tree': DecisionTreeRegressor(random_state=42),
+        'Random Forest': RandomForestRegressor(random_state=42, n_estimators=100)
+    }
+    
+    results = {}
+    best_model = None
+    best_r2 = -float('inf')
+    
+    print(f"\n----- {target_name} Prediction (Regression) -----")
+    
+    for name, model in models.items():
+        # Cross-validation
+        cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_absolute_error')
+        
+        # Train on full training set
+        model.fit(X_train, y_train)
+        
+        # Predictions
+        y_pred = model.predict(X_test)
+        
+        # Metrics
+        mae = mean_absolute_error(y_test, y_pred)
+        r2 = r2_score(y_test, y_pred)
+        
+        # Store results
+        results[name] = {
+            'model': model,
+            'cv_mae': -np.mean(cv_scores),
+            'test_mae': mae,
+            'r2': r2
+        }
+        
+        # Format output based on target
+        if target_name == 'Credit Limit':
+            print(f"{name} - CV MAE: ${-np.mean(cv_scores):.2f}, Test MAE: ${mae:.2f}, R^2: {r2:.3f}")
+        else:  # Interest Rate
+            print(f"{name} - CV MAE: {-np.mean(cv_scores):.3f}%, Test MAE: {mae:.3f}%, R^2: {r2:.3f}")
+        
+        # Track best model
+        if r2 > best_r2:
+            best_r2 = r2
+            best_model = model
+    
+    return results, best_model
 
-# One-hot encode categorical features in features only
-df_encoded = pd.get_dummies(df[features], columns=[col for col in categorical_cols if col in features], drop_first=True)
+def get_feature_importance(model, feature_names, top_n=10):
+    """Extract feature importance from tree-based models"""
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        indices = np.argsort(importances)[::-1]
+        
+        print("\nTop features by importance:")
+        for i in range(min(top_n, len(feature_names))):
+            print(f"{i+1}. {feature_names[indices[i]]}: {importances[indices[i]]:.4f}")
 
-# Standardize numerical features for better model performance
-scaler = StandardScaler()
-numeric_features = [col for col in df_encoded.columns if col not in df.select_dtypes(include=['object','category','bool']).columns]
-df_encoded[numeric_features] = scaler.fit_transform(df_encoded[numeric_features])
+def main():
+    # Set file path
+    file_path = 'synthetic_loan_applications.csv'
+    
+    # Create model directory
+    model_dir = create_model_directory()
+    
+    # Load and preprocess data
+    df, numeric_cols, categorical_cols = load_and_preprocess_data(file_path)
+    
+    # Define target columns and features with correct names from CSV
+    target_cols = {
+        'approval': 'approved',
+        'credit_limit': 'approved_amount',
+        'interest': 'interest_rate'
+    }
+    
+    # Validate all required columns exist
+    missing_cols = [col for col in target_cols.values() if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
+    
+    features = [col for col in df.columns if col not in target_cols.values()]
+    
+    print("\nTarget columns:", target_cols)
+    print("Feature columns:", features)
+    
+    ###############################
+    # 1. Approval Status Prediction (Classification)
+    ###############################
+    
+    # Prepare features and target
+    X, y = prepare_features_targets(
+        df, features, target_cols['approval'], categorical_cols, 
+        encode_target={True: 1, False: 0}  # Assuming 'approved' is boolean
+    )
+    
+    # Split data
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Encode and scale features
+    X_train_encoded, X_test_encoded, _ = encode_and_scale_features(
+        X_train, X_test, categorical_cols, numeric_cols
+    )
+    
+    # Train and evaluate classification models
+    classification_results, best_clf = train_evaluate_classification(
+        X_train_encoded, X_test_encoded, y_train, y_test
+    )
+    
+    # Get feature importance for best model if it's a tree-based model
+    if isinstance(best_clf, (DecisionTreeClassifier, RandomForestClassifier)):
+        get_feature_importance(best_clf, X_train_encoded.columns)
+    
+    # Save best model
+    joblib.dump(best_clf, os.path.join(model_dir, 'approval_model.pkl'))
+    
+    ###############################
+    # 2. Credit Limit Prediction (Regression)
+    ###############################
+    
+    # Filter for approved applicants only
+    approved_df = df[df[target_cols['approval']] == 1].copy()
+    
+    # Prepare features and target for credit limit
+    X_limit, y_limit = prepare_features_targets(
+        approved_df, features, target_cols['credit_limit'], categorical_cols
+    )
+    
+    # Split data
+    X_train_lim, X_test_lim, y_train_lim, y_test_lim = train_test_split(
+        X_limit, y_limit, test_size=0.2, random_state=42
+    )
+    
+    # Encode and scale features
+    X_train_lim_encoded, X_test_lim_encoded, _ = encode_and_scale_features(
+        X_train_lim, X_test_lim, categorical_cols, numeric_cols
+    )
+    
+    # Train and evaluate regression models for credit limit
+    limit_results, best_limit_model = train_evaluate_regression(
+        X_train_lim_encoded, X_test_lim_encoded, y_train_lim, y_test_lim, 'Credit Limit'
+    )
+    
+    # Get feature importance for best model if it's a tree-based model
+    if isinstance(best_limit_model, (DecisionTreeRegressor, RandomForestRegressor)):
+        get_feature_importance(best_limit_model, X_train_lim_encoded.columns)
+    
+    # Save best model
+    joblib.dump(best_limit_model, os.path.join(model_dir, 'credit_limit_model.pkl'))
+    
+    ###############################
+    # 3. Interest Rate Prediction (Regression)
+    ###############################
+    
+    # Prepare features and target for interest rate
+    X_interest, y_interest = prepare_features_targets(
+        approved_df, features, target_cols['interest'], categorical_cols
+    )
+    
+    # Split data
+    X_train_int, X_test_int, y_train_int, y_test_int = train_test_split(
+        X_interest, y_interest, test_size=0.2, random_state=42
+    )
+    
+    # Encode and scale features
+    X_train_int_encoded, X_test_int_encoded, _ = encode_and_scale_features(
+        X_train_int, X_test_int, categorical_cols, numeric_cols
+    )
+    
+    # Train and evaluate regression models for interest rate
+    interest_results, best_interest_model = train_evaluate_regression(
+        X_train_int_encoded, X_test_int_encoded, y_train_int, y_test_int, 'Interest Rate'
+    )
+    
+    # Get feature importance for best model if it's a tree-based model
+    if isinstance(best_interest_model, (DecisionTreeRegressor, RandomForestRegressor)):
+        get_feature_importance(best_interest_model, X_train_int_encoded.columns)
+    
+    # Save best model
+    joblib.dump(best_interest_model, os.path.join(model_dir, 'interest_rate_model.pkl'))
+    
+    print(f"\nAll models trained and saved to {model_dir}")
 
-###############################
-# 2. Approval Status Prediction (Classification)
-###############################
-
-# Prepare features (X) and target (y) for approval status
-X = df_encoded.copy()
-y = df['ApprovalStatus']
-
-# Encode the approval status target if it's categorical (e.g., 'Yes'/'No' -> 1/0)
-if y.dtype == 'object':
-    y = y.map({'Yes': 1, 'No': 0})
-
-# Split the dataset into training and testing sets for classification
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-# Initialize the classifiers
-log_clf = LogisticRegression(max_iter=1000, random_state=42)
-dt_clf = DecisionTreeClassifier(random_state=42)
-rf_clf = RandomForestClassifier(random_state=42)
-
-# Train the models
-log_clf.fit(X_train, y_train)
-dt_clf.fit(X_train, y_train)
-rf_clf.fit(X_train, y_train)
-
-# Predict on the test set
-y_pred_log = log_clf.predict(X_test)
-y_pred_dt = dt_clf.predict(X_test)
-y_pred_rf = rf_clf.predict(X_test)
-
-# Calculate accuracy for each model
-acc_log = accuracy_score(y_test, y_pred_log)
-acc_dt = accuracy_score(y_test, y_pred_dt)
-acc_rf = accuracy_score(y_test, y_pred_rf)
-
-# Calculate AUC-ROC for each model (need probability estimates for AUC)
-y_proba_log = log_clf.predict_proba(X_test)[:, 1]
-y_proba_dt = dt_clf.predict_proba(X_test)[:, 1]
-y_proba_rf = rf_clf.predict_proba(X_test)[:, 1]
-auc_log = roc_auc_score(y_test, y_proba_log)
-auc_dt = roc_auc_score(y_test, y_proba_dt)
-auc_rf = roc_auc_score(y_test, y_proba_rf)
-
-# Print evaluation metrics
-print("----- Approval Status Prediction (Classification) -----")
-print(f"Logistic Regression Accuracy: {acc_log:.3f}, AUC: {auc_log:.3f}")
-print(f"Decision Tree Accuracy: {acc_dt:.3f}, AUC: {auc_dt:.3f}")
-print(f"Random Forest Accuracy: {acc_rf:.3f}, AUC: {auc_rf:.3f}")
-print("\nClassification Report (Random Forest):")
-print(classification_report(y_test, y_pred_rf))
-
-
-###############################
-# 3. Credit Limit Prediction (Regression)
-###############################
-
-# Filter the dataset to include only approved applicants
-approved_df = df[df['ApprovalStatus'] == 1].copy()
-
-# Define features and target for credit limit prediction
-X_limit = approved_df[features]  # use same feature columns as before
-y_limit = approved_df['CreditLimit']
-
-# Split into train and test sets
-X_train_lim, X_test_lim, y_train_lim, y_test_lim = train_test_split(X_limit, y_limit, test_size=0.2, random_state=42)
-
-# Handle missing values for the subset (if any) and scale numeric features
-for col in numeric_cols:
-    median_val = X_train_lim[col].median()
-    X_train_lim[col].fillna(median_val, inplace=True)
-    X_test_lim[col].fillna(median_val, inplace=True)
-for col in categorical_cols:
-    if col in X_train_lim.columns and not X_train_lim[col].mode().empty:
-        mode_val = X_train_lim[col].mode()[0]
-        X_train_lim[col].fillna(mode_val, inplace=True)
-        X_test_lim[col].fillna(mode_val, inplace=True)
-
-X_train_lim[numeric_cols] = scaler.fit_transform(X_train_lim[numeric_cols])
-X_test_lim[numeric_cols] = scaler.transform(X_test_lim[numeric_cols])
-
-# One-hot encode categoricals for train and test, ensuring same columns
-X_train_lim = pd.get_dummies(X_train_lim, columns=[col for col in categorical_cols if col in X_train_lim.columns], drop_first=True)
-X_test_lim = pd.get_dummies(X_test_lim, columns=[col for col in categorical_cols if col in X_test_lim.columns], drop_first=True)
-X_test_lim = X_test_lim.reindex(columns=X_train_lim.columns, fill_value=0)
-
-# Initialize regression models for credit limit
-lin_reg = LinearRegression()
-dt_reg = DecisionTreeRegressor(random_state=42)
-rf_reg = RandomForestRegressor(random_state=42)
-
-# Train the models on the approved applicants' training data
-lin_reg.fit(X_train_lim, y_train_lim)
-dt_reg.fit(X_train_lim, y_train_lim)
-rf_reg.fit(X_train_lim, y_train_lim)
-
-# Predict credit limit on test set
-y_pred_lin = lin_reg.predict(X_test_lim)
-y_pred_dt = dt_reg.predict(X_test_lim)
-y_pred_rf = rf_reg.predict(X_test_lim)
-
-# Evaluate the models
-mae_lin = mean_absolute_error(y_test_lim, y_pred_lin)
-mae_dt  = mean_absolute_error(y_test_lim, y_pred_dt)
-mae_rf  = mean_absolute_error(y_test_lim, y_pred_rf)
-r2_lin  = r2_score(y_test_lim, y_pred_lin)
-r2_dt   = r2_score(y_test_lim, y_pred_dt)
-r2_rf   = r2_score(y_test_lim, y_pred_rf)
-
-print("\n----- Credit Limit Prediction (Regression) -----")
-print(f"Linear Regression MAE: ${mae_lin:.2f}, R^2: {r2_lin:.3f}")
-print(f"Decision Tree Regressor MAE: ${mae_dt:.2f}, R^2: {r2_dt:.3f}")
-print(f"Random Forest Regressor MAE: ${mae_rf:.2f}, R^2: {r2_rf:.3f}")
-
-###############################
-# 4. Interest Rate Prediction (Regression)
-###############################
-
-# Define features and target for interest rate prediction (approved applicants only)
-X_interest = approved_df[features]  # reuse the filtered approved applicants
-y_interest = approved_df['InterestRate']
-
-# Split into train and test sets
-X_train_int, X_test_int, y_train_int, y_test_int = train_test_split(X_interest, y_interest, test_size=0.2, random_state=42)
-
-# Handle missing values and scaling for interest rate prediction
-for col in numeric_cols:
-    median_val = X_train_int[col].median()
-    X_train_int[col].fillna(median_val, inplace=True)
-    X_test_int[col].fillna(median_val, inplace=True)
-for col in categorical_cols:
-    if col in X_train_int.columns and not X_train_int[col].mode().empty:
-        mode_val = X_train_int[col].mode()[0]
-        X_train_int[col].fillna(mode_val, inplace=True)
-        X_test_int[col].fillna(mode_val, inplace=True)
-
-X_train_int[numeric_cols] = scaler.fit_transform(X_train_int[numeric_cols])
-X_test_int[numeric_cols] = scaler.transform(X_test_int[numeric_cols])
-
-# One-hot encode categorical features, aligning train and test columns
-X_train_int = pd.get_dummies(X_train_int, columns=[col for col in categorical_cols if col in X_train_int.columns], drop_first=True)
-X_test_int = pd.get_dummies(X_test_int, columns=[col for col in categorical_cols if col in X_test_int.columns], drop_first=True)
-X_test_int = X_test_int.reindex(columns=X_train_int.columns, fill_value=0)
-
-# Initialize regression models for interest rate
-lin_reg_int = LinearRegression()
-dt_reg_int = DecisionTreeRegressor(random_state=42)
-rf_reg_int = RandomForestRegressor(random_state=42)
-
-# Train the models
-lin_reg_int.fit(X_train_int, y_train_int)
-dt_reg_int.fit(X_train_int, y_train_int)
-rf_reg_int.fit(X_train_int, y_train_int)
-
-# Predict interest rate on the test set
-y_pred_lin_int = lin_reg_int.predict(X_test_int)
-y_pred_dt_int = dt_reg_int.predict(X_test_int)
-y_pred_rf_int = rf_reg_int.predict(X_test_int)
-
-# Evaluate the models
-mae_lin_int = mean_absolute_error(y_test_int, y_pred_lin_int)
-mae_dt_int  = mean_absolute_error(y_test_int, y_pred_dt_int)
-mae_rf_int  = mean_absolute_error(y_test_int, y_pred_rf_int)
-r2_lin_int  = r2_score(y_test_int, y_pred_lin_int)
-r2_dt_int   = r2_score(y_test_int, y_pred_dt_int)
-r2_rf_int   = r2_score(y_test_int, y_pred_rf_int)
-
-print("\n----- Interest Rate Prediction (Regression) -----")
-print(f"Linear Regression MAE: {mae_lin_int:.3f}%, R^2: {r2_lin_int:.3f}")
-print(f"Decision Tree Regressor MAE: {mae_dt_int:.3f}%, R^2: {r2_dt_int:.3f}")
-print(f"Random Forest Regressor MAE: {mae_rf_int:.3f}%, R^2: {r2_rf_int:.3f}")
+if __name__ == "__main__":
+    main()
