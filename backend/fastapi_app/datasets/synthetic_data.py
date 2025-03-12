@@ -33,8 +33,8 @@ def generate_applicant_dataset(num_rows=ROWS):
     # monthly_income
     monthly_income = annual_income / 12.0
 
-    # self_reported_debt: 10–30% of monthly income
-    debt_factor = np.random.uniform(0.1, 0.3, size=num_rows)
+    # MODIFIED: self_reported_debt: 5–20% of monthly income (reduced from 10-30%)
+    debt_factor = np.random.uniform(0.075, 0.25, size=num_rows)
     self_reported_debt = debt_factor * monthly_income
 
     # self_reported_expenses: uniform(0–10,000)
@@ -140,10 +140,11 @@ def create_merged_dataset(df_applicant, df_credit):
 # -------------------------------
 def add_estimated_debt(df):
     """
-    Adds 'estimated_debt' = total_credit_limit * (credit_utilization/100) * 0.03
+    Adds 'estimated_debt' = total_credit_limit * (credit_utilization/100) * 0.02
+    Modified from 0.03 to 0.02 to reduce DTI values overall
     """
     df["estimated_debt"] = (
-        df["total_credit_limit"] * (df["credit_utilization"] / 100.0) * 0.03
+        df["total_credit_limit"] * (df["credit_utilization"] / 100.0) * 0.025  # Reduced from 0.03
     )
     return df
 
@@ -173,7 +174,7 @@ def finalize_approval(df):
 
     # compute DTI
     monthly_income = df["annual_income"] / 12.0
-    dti = (monthly_debt + (df["requested_amount"] * 0.015)) / monthly_income * 100.0
+    dti = (monthly_debt + (df["requested_amount"] * 0.015)) / monthly_income * 100.0  # Reduced from 0.03 to 0.015
     df["DTI"] = dti
 
     def approve_row(row):
