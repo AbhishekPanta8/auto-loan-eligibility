@@ -1,0 +1,143 @@
+{
+	"info": {
+		"_postman_id": "e301540a-bf7c-40cc-a5af-1df08560df3a",
+		"name": "Pre Approval of One Sandbox",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "14773728",
+		"_collection_link": "https://www.postman.com/aparnaefx/workspace/sandbox/collection/14773728-e301540a-bf7c-40cc-a5af-1df08560df3a?action=share&creator=14773728&source=collection_link"
+	},
+	"item": [
+		{
+			"name": "Pre Approval POST API PROXY",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"type": "text",
+						"value": "Bearer {{x-efx-access-token}}"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					},
+					{
+						"key": "efx-client-correlation-id",
+						"type": "text",
+						"value": "123",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"consumers\": {\n        \"name\": [\n            {\n                \"identifier\": \"current\",\n                \"firstName\": \"LJBKFJ\",\n                \"lastName\": \"KHJGUFJM\"\n            }\n        ],\n        \"socialNum\": [\n            {\n                \"identifier\": \"current\",\n                \"number\": \"666123456\"\n            }\n        ],\n        \"addresses\": [\n            {\n                \"identifier\": \"current\",\n                \"houseNumber\": \"123\",\n                \"streetName\": \"POIBHHFJD\",\n                \"streetType\": \"ST\",\n                \"city\": \"ATLANTA\",\n                \"state\": \"GA\",\n                \"zip\": \"30374\"\n            }\n        ]\n    },\n    \"customerReferenceidentifier\": \"2C800002-DOR7\",\n    \"customerConfiguration\": {\n        \"equifaxUSConsumerCreditReport\": {\n            \"pdfComboIndicator\": \"Y\",\n            \"memberNumber\": \"999XX12345\",\n            \"securityCode\": \"@U2\",\n            \"customerCode\": \"IAPI\",\n            \"multipleReportIndicator\": \"1\",\n            \"models\": [\n                {\n                    \"identifier\": \"02778\",\n                    \"modelField\": [\n                        \"3\",\n                        \"GA\"\n                    ]\n                },\n                {\n                    \"identifier\": \"05143\"\n                },\n                {\n                    \"identifier\": \"02916\"\n                }\n            ],\n            \"ECOAInquiryType\": \"Individual\"\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://api.sandbox.equifax.com/business/preapproval-of-one/v1/report-requests",
+					"protocol": "https",
+					"host": [
+						"api",
+						"sandbox",
+						"equifax",
+						"com"
+					],
+					"path": [
+						"business",
+						"preapproval-of-one",
+						"v1",
+						"report-requests"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Pre Approval OAUTH2.0",
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/x-www-form-urlencoded",
+						"type": "text"
+					},
+					{
+						"key": "x-efx-generation-type",
+						"value": "client_credentials",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "client_id",
+							"value": "axG88LAF1sWeuMgo8TNxXYg5OpCUyJNN",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "client_secret",
+							"value": "73IIM26qBACyAB2o",
+							"type": "text",
+							"disabled": true
+						},
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						},
+						{
+							"key": "scope",
+							"value": "https://api.equifax.com/business/preapproval-of-one/v1",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://api.sandbox.equifax.com/v2/oauth/token",
+					"protocol": "https",
+					"host": [
+						"api",
+						"sandbox",
+						"equifax",
+						"com"
+					],
+					"path": [
+						"v2",
+						"oauth",
+						"token"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
