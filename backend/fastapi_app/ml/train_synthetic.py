@@ -299,7 +299,7 @@ def get_feature_importance(model, feature_names, top_n=10):
 
 def main():
     # Set file path
-    file_path = 'synthetic_loan_applications.csv'
+    file_path = '../datasets/synthetic_loan_applications.csv'
     
     # Print model accuracy goals
     print("\n" + "="*50)
