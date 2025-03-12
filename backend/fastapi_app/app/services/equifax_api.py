@@ -271,42 +271,42 @@ class EquifaxAPI:
                     "name": [
                         {
                             "identifier": "current",
-                            "firstName": "LJBKFJ",
-                            "lastName": "KHJGUFJM"
+                            "firstName": user_data["first_name"].upper(),
+                            "lastName": user_data["last_name"].upper()
                         }
                     ],
                     "socialNum": [
                         {
                             "identifier": "current",
-                            "number": "666123456"
+                            "number": user_data["sin"]
                         }
                     ],
                     "addresses": [
                         {
                             "identifier": "current",
-                            "houseNumber": "123",
-                            "streetName": "POIBHHFJD",
-                            "streetType": "ST",
-                            "city": "ATLANTA",
-                            "state": "GA",
-                            "zip": "30374"
+                            "houseNumber": user_data["house_number"],
+                            "streetName": user_data["street_name"].upper(),
+                            "streetType": user_data["street_type"],
+                            "city": user_data["city"].upper(),
+                            "state": user_data["province"],
+                            "zip": user_data["postal_code"]
                         }
                     ]
                 },
-                "customerReferenceidentifier": "2C800002-DOR7",
+                "customerReferenceidentifier": f"TD-{int(time.time())}",
                 "customerConfiguration": {
                     "equifaxUSConsumerCreditReport": {
-                        "pdfComboIndicator": "Y",
-                        "memberNumber": "999XX12345",
-                        "securityCode": "@U2",
-                        "customerCode": "IAPI",
+                        #"pdfComboIndicator": "Y",
+                        # "memberNumber": self.member_number,
+                        # "securityCode": self.security_code,
+                        # "customerCode": self.customer_code,
                         "multipleReportIndicator": "1",
                         "models": [
                             {
                                 "identifier": "02778",
                                 "modelField": [
                                     "3",
-                                    "GA"
+                                    user_data["province"]
                                 ]
                             },
                             {
@@ -320,7 +320,7 @@ class EquifaxAPI:
                     }
                 }
             }
-            
+            print("payload $$$$", payload)
             # Log request details in debug mode
             logger.debug(f"Making request to: {self.base_url}/report-requests")
             logger.debug(f"Headers: {headers}")

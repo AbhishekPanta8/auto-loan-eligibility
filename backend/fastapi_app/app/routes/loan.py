@@ -44,16 +44,25 @@ def predict_loan_eligibility(application: LoanApplication):
             first_name = name_parts[0]
             last_name = name_parts[1] if len(name_parts) > 1 else ""
             
+            # Extract house number, street name, and type from street_address if provided
+            address_parts = application.street_address.split(" ") if application.street_address else []
+            house_number = address_parts[0] if address_parts else ""
+            street_type = address_parts[-1] if len(address_parts) > 1 else ""
+            street_name = " ".join(address_parts[1:-1]) if len(address_parts) > 2 else ""
+            
             # Prepare user data for Equifax API
             user_data = {
                 "first_name": first_name,
                 "last_name": last_name,
                 "date_of_birth": application.date_of_birth,
-                "street_address": application.street_address,
+                "house_number": house_number,
+                "street_name": street_name,
+                "street_type": street_type,
                 "city": application.city,
                 "province": application.province,
                 "postal_code": application.postal_code,
                 "sin": application.sin,
+                # Include self-reported data for fallback
                 "credit_score": application.credit_score,
                 "credit_history_length": application.credit_history_length,
                 "missed_payments": application.missed_payments,

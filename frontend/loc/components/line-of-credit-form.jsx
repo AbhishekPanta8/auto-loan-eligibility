@@ -48,6 +48,9 @@ export function LineOfCreditForm() {
     street_address: "",
     city: "",
     postal_code: "",
+    house_number: "",
+    street_name: "",
+    street_type: "ST",
   })
 
   const handleChange = (field, value) => {
@@ -88,10 +91,6 @@ export function LineOfCreditForm() {
           const errorData = await response.json()
           setErrorMessage("Validation error: Please check your input data.")
           console.error("Validation error:", errorData)
-        } else if (response.status === 500) {
-          setErrorMessage("Server error: Our system is currently experiencing issues. Please try again later.")
-        } else if (response.status === 404) {
-          setErrorMessage("API endpoint not found. Please contact support.")
         } else {
           setErrorMessage(`Server responded with status: ${response.status}`)
         }
@@ -163,6 +162,9 @@ export function LineOfCreditForm() {
       street_address: "",
       city: "",
       postal_code: "",
+      house_number: "",
+      street_name: "",
+      street_type: "ST",
     })
   }
 
@@ -738,72 +740,81 @@ export function LineOfCreditForm() {
 
               {formData.equifax_consent && (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="sin">
-                      Social Insurance Number (SIN)
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="w-80">Your SIN is required for the credit check and will be encrypted and handled securely.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </Label>
-                    <Input
-                      id="sin"
-                      placeholder="Enter your SIN (e.g., 123-456-789)"
-                      value={formData.sin}
-                      onChange={(e) => handleChange("sin", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="date_of_birth">
-                      Date of Birth
-                    </Label>
-                    <Input
-                      id="date_of_birth"
-                      type="date"
-                      value={formData.date_of_birth}
-                      onChange={(e) => handleChange("date_of_birth", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="street_address">
-                      Street Address
-                    </Label>
-                    <Input
-                      id="street_address"
-                      placeholder="Enter your street address"
-                      value={formData.street_address}
-                      onChange={(e) => handleChange("street_address", e.target.value)}
-                    />
-                  </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="city">
-                        City
-                      </Label>
+                      <Label htmlFor="sin">Social Insurance Number (SIN)</Label>
+                      <Input
+                        id="sin"
+                        placeholder="Enter your SIN"
+                        value={formData.sin}
+                        onChange={(e) => handleChange("sin", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="date_of_birth">Date of Birth</Label>
+                      <Input
+                        id="date_of_birth"
+                        type="date"
+                        value={formData.date_of_birth}
+                        onChange={(e) => handleChange("date_of_birth", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="house_number">House Number</Label>
+                      <Input
+                        id="house_number"
+                        placeholder="123"
+                        value={formData.house_number}
+                        onChange={(e) => handleChange("house_number", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label htmlFor="street_name">Street Name</Label>
+                      <Input
+                        id="street_name"
+                        placeholder="Main"
+                        value={formData.street_name}
+                        onChange={(e) => handleChange("street_name", e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="street_type">Street Type</Label>
+                      <Select
+                        value={formData.street_type}
+                        onValueChange={(value) => handleChange("street_type", value)}
+                      >
+                        <SelectTrigger id="street_type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ST">Street (ST)</SelectItem>
+                          <SelectItem value="AV">Avenue (AV)</SelectItem>
+                          <SelectItem value="RD">Road (RD)</SelectItem>
+                          <SelectItem value="DR">Drive (DR)</SelectItem>
+                          <SelectItem value="CR">Crescent (CR)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="city">City</Label>
                       <Input
                         id="city"
-                        placeholder="Enter your city"
+                        placeholder="Toronto"
                         value={formData.city}
                         onChange={(e) => handleChange("city", e.target.value)}
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="postal_code">
-                        Postal Code
-                      </Label>
+                      <Label htmlFor="postal_code">Postal Code</Label>
                       <Input
                         id="postal_code"
-                        placeholder="Enter your postal code"
+                        placeholder="A1B 2C3"
                         value={formData.postal_code}
                         onChange={(e) => handleChange("postal_code", e.target.value)}
                       />
@@ -869,7 +880,6 @@ export function LineOfCreditForm() {
                   )}
                 </div>
 
-                {/* Credit Report Section - Only show if Equifax consent was given and credit report is available */}
                 {formData.equifax_consent && result.credit_report && (
                   <div className="mt-6 p-6 rounded-lg border border-blue-200 bg-blue-50">
                     <h3 className="text-xl font-bold mb-4 text-blue-700">Your Credit Report Summary</h3>
