@@ -53,4 +53,5 @@ backend/fastapi_app/datasets/splits
 backend/fastapi_app/models
 backend/fastapi_app/models/
 backend/fastapi_app/models/*
-backend/fastapi_app/models/
+
+.env

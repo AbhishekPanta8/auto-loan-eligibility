@@ -78,7 +78,7 @@ def generate_credit_dataset(num_rows=ROWS):
     """
     Creates a Third-Party Credit Dataset with:
       - applicant_id,
-      - credit_score: Normal(680,100) clipped to [300,900],
+      - credit_score: Normal(680,50) clipped to [300,900],
       - limit_factor: uniform(0.5–2.0) => total_credit_limit post-merge,
       - credit_utilization: Beta(2,4) => mean ~33% => scaled to 0–100,
       - num_open_accounts (0–20),
@@ -89,7 +89,7 @@ def generate_credit_dataset(num_rows=ROWS):
     applicant_ids = [f"A{i:05d}" for i in range(1, num_rows + 1)]
 
     # credit_score from Normal(680,100), clipped to [300,900]
-    raw_scores = np.random.normal(loc=680, scale=100, size=num_rows)
+    raw_scores = np.random.normal(loc=700, scale=40, size=num_rows)
     credit_score = np.clip(raw_scores, 300, 900).astype(int)
 
     # limit_factor => 50–200% of annual_income

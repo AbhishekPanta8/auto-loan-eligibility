@@ -789,19 +789,22 @@ def diagnose_approval_decisions(df):
       - Deny if credit_score < 500.
       - Deny if DTI > 50%.
       - Deny if credit_utilization > 80%.
-      - If none of these conditions hold but the row is still denied,
-        then it falls into the ambiguous (grey) area where rules suggest approval.
+      - For ambiguous cases (where none of these conditions hold), further classify the denial:
+          * Borderline Credit Score if score is between 500 and 660.
+          * Borderline DTI if DTI is between 40 and 50.
+          * Borderline Credit Utilization if utilization is between 70 and 80.
+          * Otherwise, if the row meets strict approval conditions (but is still denied), label it as a grey area.
+          * Else, label it as "Other unspecified denial reason".
     
-    Prints a detailed per-row diagnosis and a summary count for each denial reason.
+    Prints a detailed per-row diagnosis and an aggregated summary of denial reasons.
     """
     denial_counter = Counter()
     details = []
 
-    # Iterate over rows that are denied
     for idx, row in df.iterrows():
         if row["approved"] == 0:
             reasons = []
-            # Check conditions
+            # Check explicit denial conditions
             if row["credit_score"] < 500:
                 reasons.append("Credit Score < 500")
             if row["DTI"] > 50.0:
@@ -809,31 +812,45 @@ def diagnose_approval_decisions(df):
             if row["credit_utilization"] > 80.0:
                 reasons.append("Credit Utilization > 80%")
             
-            # If none of the explicit denial conditions are met,
-            # but the row is still denied, then it must have been randomly chosen in the grey area.
+            # If none of the explicit conditions hold, further diagnose
             if not reasons:
-                # If the row meets the approval conditions (credit_score>=660, DTI<=40%, and payment_history = "On Time")
-                # but is still denied, report that.
                 pmt = str(row.get("payment_history", "")).lower()
-                if row["credit_score"] >= 660 and row["DTI"] <= 40.0 and pmt in ["on time", "on-time", "on_time"]:
-                    reasons.append("Rules suggest approval, but row is denied (grey area random choice)")
+                sub_reasons = []
+                # Check borderline credit score: between 500 and 660
+                if 500 <= row["credit_score"] < 660:
+                    sub_reasons.append("Borderline Credit Score (500-660)")
+                # Check borderline DTI: >40% up to 50%
+                if 40.0 < row["DTI"] <= 50.0:
+                    sub_reasons.append("Borderline DTI (40-50%)")
+                # Check borderline credit utilization: between 70% and 80%
+                if 70.0 < row["credit_utilization"] <= 80.0:
+                    sub_reasons.append("Borderline Credit Utilization (70-80%)")
+                
+                if sub_reasons:
+                    reasons.extend(sub_reasons)
                 else:
-                    reasons.append("Other unspecified denial reason")
+                    # If the row meets the strict approval conditions but is still denied, it's a grey area.
+                    if row["credit_score"] >= 660 and row["DTI"] <= 40.0 and pmt in ["on time", "on-time", "on_time"]:
+                        reasons.append("Grey area random choice (rules suggest approval but denied)")
+                    else:
+                        reasons.append("Other unspecified denial reason")
             
-            # Update counter and details
             for r in reasons:
                 denial_counter[r] += 1
             details.append((idx, reasons))
 
-    # Print detailed diagnosis for each denied row
-    print("\n[DIAGNOSTIC] Denial Reasons Per Row:")
-    for idx, reason_list in details:
+    # Print per-row details (first 10 examples)
+    print("\n[DIAGNOSTIC] Denial Reasons Per Row (first 10 examples):")
+    for idx, reason_list in details[:10]:
         print(f"   Row {idx}: {', '.join(reason_list)}")
-
+    
     # Print summary counts
     print("\n[DIAGNOSTIC] Summary of Denial Reasons:")
     for reason, count in denial_counter.items():
         print(f"   {reason}: {count} occurrences")
+    total_denials = sum(denial_counter.values())
+    print(f"[DIAGNOSTIC] Total denial instances: {total_denials} over {len(df)} rows")
+
 
 # To use this function, call it after validation. For example, at the end of your main():
 # diagnose_approval_decisions(df_merged)
