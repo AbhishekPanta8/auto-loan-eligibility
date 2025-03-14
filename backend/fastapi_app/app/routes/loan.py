@@ -173,10 +173,10 @@ def predict_loan_eligibility(application: LoanApplication):
         # Optional: Log the processed input for debugging.
         logger.debug(f"Processed input for prediction: {input_processed.to_dict(orient='records')[0]}")
 
-        # Make predictions using the processed input
-        loan_approval = clf_model.predict(input_processed)[0]
+        # # Make predictions using the processed input
+        # loan_approval = clf_model.predict(input_processed)[0]
         # Get approval probability instead of direct prediction
-        approval_prob = clf_model.predict_proba(input_data)[0][1]
+        approval_prob = clf_model.predict_proba(input_processed)[0][1]
         
         # Apply configurable threshold from .env
         loan_approval = 1 if approval_prob >= APPROVAL_THRESHOLD else 0

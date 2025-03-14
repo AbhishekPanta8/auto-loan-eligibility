@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 
 # -------------------------------
 # 1) CONFIG
@@ -464,9 +465,10 @@ def main():
     diagnose_dti_components(df_merged)
 
     # 6) Save
-    df_applicant.to_csv("datasets/data/applicant_dataset.csv", index=False)
-    df_credit.to_csv("datasets/data/third_party_dataset.csv", index=False)
-    df_merged.to_csv("datasets/data/synthetic_loan_applications.csv", index=False)
+    os.makedirs("data", exist_ok=True)
+    df_applicant.to_csv("data/applicant_dataset.csv", index=False)
+    df_credit.to_csv("data/third_party_dataset.csv", index=False)
+    df_merged.to_csv("data/synthetic_loan_applications.csv", index=False)
 
     print("[INFO] Applicant dataset shape:", df_applicant.shape)
     print("[INFO] Third-party dataset shape:", df_credit.shape)
