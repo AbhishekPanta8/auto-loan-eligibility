@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import os
 import joblib
+import sys
+import subprocess
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
@@ -10,6 +12,115 @@ from sklearn.metrics import (
 )
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+def generate_fresh_evaluation_data(num_samples=1000, output_file=None):
+    """
+    Generate a fresh dataset for evaluation by calling the synthetic data generation script
+    
+    Args:
+        num_samples: Number of samples to generate
+        output_file: Path to save the generated data
+        
+    Returns:
+        Path to the generated dataset file
+    """
+    print("Generating fresh evaluation dataset...")
+    
+    # Set default output file if not provided
+    if output_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_dir = os.path.join(os.path.dirname(script_dir), 'datasets', 'data')
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, 'evaluation_loan_applications.csv')
+    
+    # Import the synthetic data generation module
+    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'datasets'))
+    
+    try:
+        # Try to import and use the synthetic_data module directly
+        import synthetic_data
+        
+        # Generate applicant dataset
+        df_applicant = synthetic_data.generate_applicant_dataset(num_rows=num_samples)
+        
+        # Generate credit dataset
+        df_credit = synthetic_data.generate_credit_dataset(num_rows=num_samples)
+        
+        # Merge datasets
+        df_merged = synthetic_data.create_merged_dataset(df_applicant, df_credit)
+        
+        # Add estimated debt
+        df_merged = synthetic_data.add_estimated_debt(df_merged)
+        
+        # Compute approval
+        df_merged = synthetic_data.finalize_approval(df_merged)
+        
+        # Compute approved_amount and interest
+        df_merged = synthetic_data.finalize_approved_amount_and_interest(df_merged)
+        
+        # Introduce missingness and noise (optional)
+        df_merged = synthetic_data.introduce_missingness(df_merged, missing_frac=0.02)
+        df_merged = synthetic_data.introduce_noise(
+            df_merged, noise_frac=0.05, 
+            columns=["annual_income", "credit_score", "months_employed"]
+        )
+        
+        # Save the dataset
+        df_merged.to_csv(output_file, index=False)
+        
+        print(f"Fresh evaluation dataset with {num_samples} samples saved to {output_file}")
+        
+    except ImportError:
+        # If direct import fails, run the script as a subprocess
+        print("Falling back to subprocess method for data generation...")
+        
+        # Create a temporary Python script to generate the data
+        temp_script = os.path.join(os.path.dirname(output_file), 'temp_generate_eval_data.py')
+        
+        with open(temp_script, 'w') as f:
+            f.write(f"""
+import sys
+import os
+sys.path.append('{os.path.dirname(os.path.dirname(os.path.abspath(__file__)))}')
+from datasets import synthetic_data
+
+# Generate applicant dataset
+df_applicant = synthetic_data.generate_applicant_dataset(num_rows={num_samples})
+
+# Generate credit dataset
+df_credit = synthetic_data.generate_credit_dataset(num_rows={num_samples})
+
+# Merge datasets
+df_merged = synthetic_data.create_merged_dataset(df_applicant, df_credit)
+
+# Add estimated debt
+df_merged = synthetic_data.add_estimated_debt(df_merged)
+
+# Compute approval
+df_merged = synthetic_data.finalize_approval(df_merged)
+
+# Compute approved_amount and interest
+df_merged = synthetic_data.finalize_approved_amount_and_interest(df_merged)
+
+# Introduce missingness and noise
+df_merged = synthetic_data.introduce_missingness(df_merged, missing_frac=0.02)
+df_merged = synthetic_data.introduce_noise(
+    df_merged, noise_frac=0.05, 
+    columns=["annual_income", "credit_score", "months_employed"]
+)
+
+# Save the dataset
+df_merged.to_csv('{output_file}', index=False)
+print(f"Fresh evaluation dataset with {num_samples} samples saved to {output_file}")
+""")
+        
+        # Run the temporary script
+        subprocess.run([sys.executable, temp_script], check=True)
+        
+        # Clean up
+        os.remove(temp_script)
+    
+    return output_file
 
 def load_models_and_artifacts(model_dir=None):
     """
@@ -45,19 +156,20 @@ def load_models_and_artifacts(model_dir=None):
         'scaled_columns': scaled_columns
     }
 
-def load_and_preprocess_data(file_path=None):
+def load_and_preprocess_data(file_path=None, generate_new=True, num_samples=1000):
     """
     Load and preprocess the dataset for evaluation
     
     Args:
         file_path: Path to the dataset file
+        generate_new: Whether to generate a new dataset
+        num_samples: Number of samples to generate if generate_new is True
         
     Returns:
         Tuple containing the preprocessed data and target variables
     """
-    if file_path is None:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        file_path = os.path.join(os.path.dirname(script_dir), 'datasets', 'data', 'synthetic_loan_applications.csv')
+    if generate_new or file_path is None:
+        file_path = generate_fresh_evaluation_data(num_samples=num_samples)
     
     print(f"Loading data from {file_path}...")
     df = pd.read_csv(file_path)
@@ -346,11 +458,15 @@ def main():
     """
     Main function to run the evaluation
     """
+    # Generate fresh evaluation data
+    # Set generate_new=True to generate a new dataset each time
+    # Set num_samples to control the size of the generated dataset
+    
     # Load models and artifacts
     models_artifacts = load_models_and_artifacts()
     
-    # Load and preprocess data
-    data = load_and_preprocess_data()
+    # Load and preprocess data with fresh generation
+    data = load_and_preprocess_data(generate_new=True, num_samples=1000)
     
     # Preprocess test data
     X_test_processed = preprocess_test_data(
