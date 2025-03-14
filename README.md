@@ -11,3 +11,6 @@ cd backend/fastapi_app && python datasets/synthetic_data.py
 
 ### train ML model
 cd backend/fastapi_app && python ml/train_synthetic.py
+
+### Run test cases
+cd backend/fastapi_app && python -m pytest tests/test_model_performance.py -v
