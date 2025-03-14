@@ -5,18 +5,26 @@ import os
 from app.schemas.loan import LoanApplication, CreditReport, LoanPredictionResponse
 from app.services.equifax_api import EquifaxAPI
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Correctly set the base directory
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
-MODEL_DIR = os.path.join(BASE_DIR, "models")
-
+MODEL_DIR = os.path.join(BASE_DIR, "ml","models")
+print("MODEL_DIR", MODEL_DIR)
 # Load models
-clf_model = joblib.load(os.path.join(MODEL_DIR, "loan_approval_model.pkl"))
-reg_loan_model = joblib.load(os.path.join(MODEL_DIR, "loan_amount_model.pkl"))
+clf_model = joblib.load(os.path.join(MODEL_DIR, "approval_model.pkl"))
+reg_loan_model = joblib.load(os.path.join(MODEL_DIR, "credit_limit_model.pkl"))
 reg_interest_model = joblib.load(os.path.join(MODEL_DIR, "interest_rate_model.pkl"))
+
+# Load approval threshold from .env file with fallback to default value
+APPROVAL_THRESHOLD = float(os.environ.get("APPROVAL_THRESHOLD", 0.5))
+print(f"Using approval threshold: {APPROVAL_THRESHOLD}")
 
 # Employment status mapping (if the model expects integers)
 EMPLOYMENT_MAPPING = {
@@ -123,7 +131,6 @@ def predict_loan_eligibility(application: LoanApplication):
         employment_status = EMPLOYMENT_MAPPING.get(application.employment_status, 0)
 
         # Prepare input data in the order expected by the model
-        # Based on the documentation, the order should match the approval conditions and decision criteria
         input_data = np.array([[
             application.age,
             employment_status,
@@ -147,8 +154,12 @@ def predict_loan_eligibility(application: LoanApplication):
             application.collateral_available
         ]])
 
-        # Predict loan approval
-        loan_approval = clf_model.predict(input_data)[0]
+        # Get approval probability instead of direct prediction
+        approval_prob = clf_model.predict_proba(input_data)[0][1]
+        
+        # Apply configurable threshold from .env
+        loan_approval = 1 if approval_prob >= APPROVAL_THRESHOLD else 0
+
         estimated_loan_amount = None
         estimated_interest_rate = None
 

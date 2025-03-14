@@ -233,8 +233,8 @@ export function LineOfCreditForm() {
                   min={18}
                   max={100}
                   placeholder="Enter your age"
-                  value={formData.age}
-                  onChange={(e) => handleChange("age", Number.parseInt(e.target.value))} />
+                  value={formData.age === null ? '' : formData.age}
+                  onChange={(e) => handleChange("age", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
               </div>
 
               <div className="space-y-2">
@@ -430,8 +430,8 @@ export function LineOfCreditForm() {
                   min={0}
                   max={600}
                   placeholder="Enter months employed"
-                  value={formData.months_employed}
-                  onChange={(e) => handleChange("months_employed", Number.parseInt(e.target.value))} />
+                  value={formData.months_employed === null ? '' : formData.months_employed}
+                  onChange={(e) => handleChange("months_employed", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
               </div>
 
               <div className="space-y-2">
@@ -585,8 +585,8 @@ export function LineOfCreditForm() {
                     min={0}
                     max={20}
                     placeholder="Enter number"
-                    value={formData.num_open_accounts}
-                    onChange={(e) => handleChange("num_open_accounts", Number.parseInt(e.target.value))} />
+                    value={formData.num_open_accounts === null ? '' : formData.num_open_accounts}
+                    onChange={(e) => handleChange("num_open_accounts", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
                 </div>
 
                 <div className="space-y-2">
@@ -609,8 +609,8 @@ export function LineOfCreditForm() {
                     min={0}
                     max={10}
                     placeholder="Enter number"
-                    value={formData.num_credit_inquiries}
-                    onChange={(e) => handleChange("num_credit_inquiries", Number.parseInt(e.target.value))} />
+                    value={formData.num_credit_inquiries === null ? '' : formData.num_credit_inquiries}
+                    onChange={(e) => handleChange("num_credit_inquiries", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
                 </div>
               </div>
 

@@ -299,7 +299,7 @@ def get_feature_importance(model, feature_names, top_n=10):
 
 def main():
     # Set file path
-    file_path = '../datasets/synthetic_loan_applications.csv'
+    file_path = './datasets/data/synthetic_loan_applications.csv'
     
     # Print model accuracy goals
     print("\n" + "="*50)
@@ -366,7 +366,6 @@ def main():
     
     # Save best model and threshold
     joblib.dump(best_clf, os.path.join(model_dir, 'approval_model.pkl'))
-    joblib.dump(best_threshold, os.path.join(model_dir, 'approval_threshold.pkl'))
     
     ###############################
     # 2. Credit Limit Prediction (Regression)
