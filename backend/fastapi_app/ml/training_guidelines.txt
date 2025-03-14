@@ -1,0 +1,6 @@
+saving scalar file for one hot encoding of 
+- employment_status
+- payment_history
+- province
+
+excluding applicant id from feature columns

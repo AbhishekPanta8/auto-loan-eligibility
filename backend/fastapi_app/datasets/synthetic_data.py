@@ -446,20 +446,20 @@ def main():
     # 5) Compute approved_amount + interest
     df_merged = finalize_approved_amount_and_interest(df_merged)
 
-    # # 6) Introduce missingness (1–2%)
-    # df_merged = introduce_missingness(
-    #     df_merged,
-    #     missing_frac=0.02,  # ~2%
-    #     columns=df_merged.columns  # or a subset
-    # )
+    # 6) Introduce missingness (1–2%)
+    df_merged = introduce_missingness(
+        df_merged,
+        missing_frac=0.02,  # ~2%
+        columns=df_merged.columns  # or a subset
+    )
 
-    # # 7) Introduce noise (5–10%) in some numeric columns
-    # df_merged = introduce_noise(
-    #     df_merged,
-    #     noise_frac=0.05,   # ~8%
-    #     columns=["annual_income", "credit_score", "months_employed"]
-    #     # or whichever columns you want
-    # )
+    # 7) Introduce noise (5–10%) in some numeric columns
+    df_merged = introduce_noise(
+        df_merged,
+        noise_frac=0.05,   # ~8%
+        columns=["annual_income", "credit_score", "months_employed"]
+        # or whichever columns you want
+    )
 
     diagnose_dti_components(df_merged)
 

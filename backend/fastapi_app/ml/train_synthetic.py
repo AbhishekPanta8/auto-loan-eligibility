@@ -12,6 +12,11 @@ from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
 from sklearn.metrics import recall_score, precision_score, f1_score, confusion_matrix
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import GridSearchCV
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
 
 def create_model_directory():
     """Create directory to save trained models if it doesn't exist"""
@@ -332,10 +337,14 @@ def main():
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
     
-    features = [col for col in df.columns if col not in target_cols.values()]
+    features = [col for col in df.columns if col not in target_cols.values() and col != 'applicant_id']
     
     print("\nTarget columns:", target_cols)
     print("Feature columns:", features)
+
+    # Update categorical_cols to only include those in features.
+    categorical_cols = [col for col in categorical_cols if col in features]
+    
     
     ###############################
     # 1. Approval Status Prediction (Classification)
@@ -350,10 +359,29 @@ def main():
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # Encode and scale features
-    X_train_encoded, X_test_encoded, _ = encode_and_scale_features(
-        X_train, X_test, categorical_cols, numeric_cols
-    )
+    # --- Updated Encoding and Scaling for Approval Model ---
+    # One-hot encode categorical features for training and test sets using drop_first=True as in training.
+    X_train_encoded = pd.get_dummies(X_train, columns=categorical_cols, drop_first=True)
+    X_test_encoded = pd.get_dummies(X_test, columns=categorical_cols, drop_first=True)
+    
+    # Ensure that X_test_encoded has the same columns as X_train_encoded
+    X_test_encoded = X_test_encoded.reindex(columns=X_train_encoded.columns, fill_value=0)
+    
+    # Determine which columns are numeric (or were intended to be scaled)
+    numeric_features = [
+        col for col in X_train_encoded.columns 
+        if col in numeric_cols or (col not in categorical_cols and not any(col.startswith(c + '_') for c in categorical_cols))
+    ]
+    
+    scaler = StandardScaler()
+    # Fit and transform the numeric features for training and transform test numeric features.
+    X_train_encoded[numeric_features] = scaler.fit_transform(X_train_encoded[numeric_features])
+    X_test_encoded[numeric_features] = scaler.transform(X_test_encoded[numeric_features])
+    
+    # Save preprocessing artifacts for inference
+    joblib.dump(X_train_encoded.columns.tolist(), os.path.join(model_dir, 'encoded_feature_columns.pkl'))
+    joblib.dump(numeric_features, os.path.join(model_dir, 'scaled_columns.pkl'))
+    joblib.dump(scaler, os.path.join(model_dir, 'scaler.pkl'))
     
     # Train and evaluate classification models with high recall optimization
     classification_results, best_clf, best_threshold = train_evaluate_classification(
@@ -367,6 +395,7 @@ def main():
     # Save best model and threshold
     joblib.dump(best_clf, os.path.join(model_dir, 'approval_model.pkl'))
     joblib.dump(best_threshold, os.path.join(model_dir, 'approval_threshold.pkl'))
+    
     
     ###############################
     # 2. Credit Limit Prediction (Regression)
