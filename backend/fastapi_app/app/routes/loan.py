@@ -49,6 +49,110 @@ EMPLOYMENT_MAPPING = {
 # Initialize Equifax API client
 equifax_api = EquifaxAPI()
 
+def apply_business_rules(
+    loan_approval: int, 
+    estimated_loan_amount: float, 
+    estimated_interest_rate: float,
+    credit_score: int,
+    dti: float,
+    application: LoanApplication
+) -> tuple:
+    """
+    Apply business rules to ensure compliance with approval conditions, credit limits,
+    and interest rate constraints.
+    
+    Parameters:
+    -----------
+    loan_approval : int
+        Initial loan approval status (1 for approved, 0 for denied)
+    estimated_loan_amount : float
+        ML-predicted loan amount
+    estimated_interest_rate : float
+        ML-predicted interest rate
+    credit_score : int
+        Applicant's credit score
+    dti : float
+        Debt-to-income ratio as a percentage
+    application : LoanApplication
+        The loan application object containing all applicant information
+    debt_to_income_ratio : float
+        Raw DTI ratio (before percentage conversion)
+        
+    Returns:
+    --------
+    tuple
+        (final_approval, final_amount, final_interest_rate)
+    """
+    # Enforce hard approval/denial rules
+    if loan_approval == 0:
+        return loan_approval, estimated_loan_amount, estimated_interest_rate
+    
+    # Deny if any of these conditions are met (regardless of model prediction)
+    if (credit_score < 500 or 
+        dti > 50 or 
+        application.credit_utilization > 80):
+        loan_approval = 0
+        estimated_loan_amount = 0.0
+        estimated_interest_rate = 0.0
+        
+    # Enforce credit limit constraints
+
+    # Base limit based on credit score
+    if credit_score >= 660:
+        base_limit = application.annual_income * 0.5
+    elif credit_score >= 500:
+        base_limit = application.annual_income * 0.25
+    else:
+        base_limit = application.annual_income * 0.1
+    
+    # DTI adjustment
+    if dti <= 30:
+        dti_factor = 1.0
+    elif dti <= 40:
+        dti_factor = 0.75
+    else:
+        dti_factor = 0.5
+    
+    # Credit score cap
+    if credit_score >= 750:
+        credit_cap = 25000
+    elif credit_score >= 660:
+        credit_cap = 15000
+    elif credit_score >= 500:
+        credit_cap = 10000
+    else:
+        credit_cap = 5000
+    
+    # Employment bonus
+    employment_bonus = 1.1 if (application.employment_status == "Full-time" and application.months_employed >= 12) else 1.0
+    
+    # Payment history penalty
+    payment_penalty = 0.5 if application.payment_history == "Late >60" else 1.0
+    
+    # Credit utilization penalty
+    utilization_penalty = 0.8 if application.credit_utilization > 50 else 1.0
+    
+    # Calculate adjusted credit limit
+    adjusted_limit = min(
+        base_limit * dti_factor * employment_bonus * payment_penalty * utilization_penalty,
+        credit_cap
+    )
+    
+    # Use the lower of ML prediction or rule-based limit
+    estimated_loan_amount = min(estimated_loan_amount, adjusted_limit)
+    estimated_loan_amount = min(estimated_loan_amount, application.requested_amount)
+    
+    # Interest rate adjustments - Option 1: Remove ALL redundant adjustments
+    # The ML model has already learned these patterns, so we only enforce min/max bounds
+    
+    # Ensure interest rate is within specified range (3-15%)
+    estimated_interest_rate = max(3.0, min(15.0, estimated_interest_rate))
+    
+    # Removed all adjustment rules including num_open_accounts > 5
+    # to avoid redundancy with what the model has already learned
+
+    return loan_approval, estimated_loan_amount, estimated_interest_rate
+
 @router.post("/predict/", response_model=LoanPredictionResponse)
 def predict_loan_eligibility(application: LoanApplication):
     try:
@@ -173,9 +277,7 @@ def predict_loan_eligibility(application: LoanApplication):
         # Optional: Log the processed input for debugging.
         logger.debug(f"Processed input for prediction: {input_processed.to_dict(orient='records')[0]}")
 
-        # # Make predictions using the processed input
-        # loan_approval = clf_model.predict(input_processed)[0]
-        # Get approval probability instead of direct prediction
+        # Make predictions using the processed input
         approval_prob = clf_model.predict_proba(input_processed)[0][1]
         
         # Apply configurable threshold from .env
@@ -190,6 +292,19 @@ def predict_loan_eligibility(application: LoanApplication):
         else:
             estimated_loan_amount = 0.0
             estimated_interest_rate = 0.0
+            
+        # Calculate DTI percentage for business rules
+        dti = debt_to_income_ratio * 100  # Convert to percentage
+        
+        # Apply business rules
+        loan_approval, estimated_loan_amount, estimated_interest_rate = apply_business_rules(
+            loan_approval=loan_approval,
+            estimated_loan_amount=estimated_loan_amount,
+            estimated_interest_rate=estimated_interest_rate,
+            credit_score=credit_score,
+            dti=dti,
+            application=application
+        )
 
         return LoanPredictionResponse(
             loan_approved=bool(loan_approval),

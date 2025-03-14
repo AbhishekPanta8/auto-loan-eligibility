@@ -56,3 +56,4 @@ backend/fastapi_app/models/*
 
 .venv
 .env
+*.pyc
