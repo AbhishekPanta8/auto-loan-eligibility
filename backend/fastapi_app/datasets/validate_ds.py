@@ -1005,6 +1005,9 @@ if __name__ == "__main__":
             # Now call your validation function so all prints go to the file
             validate_dataset("synthetic_loan_applications.csv")
 
+            #this is for the one with preprocessing along with original dataset uncomment it if needed.
+            # validate_dataset("processed_loan_applications.csv")
+
             print("\n[INFO] Validation completed; all output in this log file.")
         finally:
             # Restore original stdout so further prints (if any) go back to terminal
