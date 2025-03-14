@@ -226,9 +226,9 @@ def predict_loan_eligibility(application: LoanApplication):
             debt_to_income_ratio = 0.0
 
         # Map employment status (if not already preprocessed)
-        mapped_employment_status = application.employment_status  # retain string if training used strings
+        mapped_employment_status = application.employment_status.value  # Use .value to get the string from enum
         # Alternatively, if training mapped to integers:
-        # mapped_employment_status = EMPLOYMENT_MAPPING.get(application.employment_status, 0)
+        # mapped_employment_status = EMPLOYMENT_MAPPING.get(application.employment_status.value, 0)
 
         # ----- Build Raw Input Dictionary -----
         # Note: Your training features were derived from the raw DataFrame. Here we build a dictionary
