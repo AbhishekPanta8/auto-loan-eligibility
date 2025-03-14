@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Literal
 from enum import Enum
 
@@ -57,18 +57,33 @@ class LoanApplication(BaseModel):
     city: Optional[str] = None  # City
     postal_code: Optional[str] = None  # Postal code
     
-    @validator('sin')
-    def validate_sin(cls, v):
-        if v is not None and (len(v) != 9 or not v.isdigit()):
-            raise ValueError('SIN must be a 9-digit number')
+    @field_validator('sin')
+    def validate_sin(cls, v, info):
+        # Only validate SIN if equifax_consent is True
+        if info.data.get('equifax_consent', False):
+            if v is None or v == '':
+                raise ValueError('SIN is required when consenting to Equifax check')
+            if len(v) != 9 or not v.isdigit():
+                raise ValueError('SIN must be a 9-digit number')
         return v
     
-    @validator('date_of_birth')
-    def validate_date_of_birth(cls, v):
-        if v is not None:
+    @field_validator('date_of_birth')
+    def validate_date_of_birth(cls, v, info):
+        # Only validate date_of_birth if equifax_consent is True
+        if info.data.get('equifax_consent', False):
+            if v is None or v == '':
+                raise ValueError('Date of birth is required when consenting to Equifax check')
             import re
             if not re.match(r'^\d{4}-\d{2}-\d{2}$', v):
                 raise ValueError('Date of birth must be in YYYY-MM-DD format')
+        return v
+    
+    @field_validator('street_address', 'city', 'postal_code')
+    def validate_address_fields(cls, v, info):
+        # Only validate address fields if equifax_consent is True
+        if info.data.get('equifax_consent', False):
+            if v is None or v == '':
+                raise ValueError(f'{info.field_name} is required when consenting to Equifax check')
         return v
 
 class CreditReport(BaseModel):
