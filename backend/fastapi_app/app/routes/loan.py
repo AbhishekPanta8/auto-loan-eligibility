@@ -252,7 +252,7 @@ def predict_loan_eligibility(application: LoanApplication):
             "estimated_debt": application.estimated_debt,
             "DTI": debt_to_income_ratio
         }
-        
+        print("raw_features", raw_features)
         # Create a DataFrame from raw features
         input_df = pd.DataFrame([raw_features])
 
@@ -279,10 +279,10 @@ def predict_loan_eligibility(application: LoanApplication):
 
         # Make predictions using the processed input
         approval_prob = clf_model.predict_proba(input_processed)[0][1]
-        
+        print("approval_prob", approval_prob)
         # Apply configurable threshold from .env
         loan_approval = 1 if approval_prob >= APPROVAL_THRESHOLD else 0
-
+        print("APPROVAL_THRESHOLD", APPROVAL_THRESHOLD)
         estimated_loan_amount = None
         estimated_interest_rate = None
 

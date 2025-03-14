@@ -1,165 +1,242 @@
 import pandas as pd
 import numpy as np
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, mean_absolute_error
+import os
+import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import (
+    accuracy_score, confusion_matrix, classification_report, 
+    mean_absolute_error, recall_score, precision_score, f1_score
+)
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def evaluate_loc_model(model, X_test, y_test, canadian_norms=True):
+def load_models_and_artifacts(model_dir=None):
     """
-    Evaluate a Line of Credit ML model against specified accuracy targets.
+    Load the trained models and preprocessing artifacts
     
     Args:
-        model: Trained ML model with predict and predict_proba methods
-        X_test: Test features DataFrame
-        y_test: Dictionary or DataFrame containing true values for:
-                - 'approved': binary approval status (0/1)
-                - 'approved_amount': numeric credit limit amount
-                - 'interest_rate': numeric interest rate percentage
-        canadian_norms: Whether to check alignment with Canadian financial norms
-    
-    Returns:
-        results_dict: Dictionary with evaluation metrics and pass/fail status
-    """
-    # Get predictions
-    y_pred_approved = model.predict(X_test)
-    
-    # For regression targets, we need to transform the predictions
-    # This assumes a multi-output model that returns all three targets
-    # For models that only predict one target, this should be adjusted
-    try:
-        # Try to get all predictions at once (multi-output model)
-        y_pred_all = model.predict(X_test)
-        y_pred_approved = y_pred_all[:, 0].astype(int)
-        y_pred_amount = y_pred_all[:, 1]
-        y_pred_rate = y_pred_all[:, 2]
-    except:
-        # If that fails, try individual predictions
-        try:
-            y_pred_approved = model.predict_approved(X_test).astype(int)
-        except:
-            y_pred_approved = model.predict(X_test).astype(int)
+        model_dir: Directory containing the trained models and artifacts
         
-        try:
-            y_pred_amount = model.predict_amount(X_test)
-        except:
-            # Skip if not available
-            y_pred_amount = None
-            
-        try:
-            y_pred_rate = model.predict_rate(X_test)
-        except:
-            # Skip if not available
-            y_pred_rate = None
+    Returns:
+        Dictionary containing the loaded models and artifacts
+    """
+    if model_dir is None:
+        model_dir = os.path.join(os.path.dirname(__file__), 'models')
     
-    # Extract true values (handle both dictionary and DataFrame formats)
-    if isinstance(y_test, dict):
-        y_true_approved = y_test['approved']
-        y_true_amount = y_test.get('approved_amount')
-        y_true_rate = y_test.get('interest_rate')
-    else:  # Assume DataFrame
-        y_true_approved = y_test['approved'].values
-        y_true_amount = y_test.get('approved_amount', pd.Series()).values
-        y_true_rate = y_test.get('interest_rate', pd.Series()).values
+    print(f"Loading models from {model_dir}...")
     
-    # Initialize results dictionary
-    results = {
-        'approval': {
-            'target': 0.85,  # 85% accuracy
-            'value': None,
-            'pass': False
-        },
-        'amount': {
-            'target': 2000,  # MAE ≤ $2K
-            'value': None,
-            'pass': False
-        },
-        'rate': {
-            'target': 1.0,  # MAE ≤ 1%
-            'value': None,
-            'pass': False
-        },
-        'canadian_norms': {
-            'pass': False,
-            'details': {}
-        },
-        'overall_pass': False
+    # Load models
+    approval_model = joblib.load(os.path.join(model_dir, 'approval_model.pkl'))
+    credit_limit_model = joblib.load(os.path.join(model_dir, 'credit_limit_model.pkl'))
+    interest_rate_model = joblib.load(os.path.join(model_dir, 'interest_rate_model.pkl'))
+    
+    # Load preprocessing artifacts
+    encoded_feature_columns = joblib.load(os.path.join(model_dir, 'encoded_feature_columns.pkl'))
+    scaler = joblib.load(os.path.join(model_dir, 'scaler.pkl'))
+    scaled_columns = joblib.load(os.path.join(model_dir, 'scaled_columns.pkl'))
+    
+    return {
+        'approval_model': approval_model,
+        'credit_limit_model': credit_limit_model,
+        'interest_rate_model': interest_rate_model,
+        'encoded_feature_columns': encoded_feature_columns,
+        'scaler': scaler,
+        'scaled_columns': scaled_columns
+    }
+
+def load_and_preprocess_data(file_path=None):
+    """
+    Load and preprocess the dataset for evaluation
+    
+    Args:
+        file_path: Path to the dataset file
+        
+    Returns:
+        Tuple containing the preprocessed data and target variables
+    """
+    if file_path is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(os.path.dirname(script_dir), 'datasets', 'data', 'synthetic_loan_applications.csv')
+    
+    print(f"Loading data from {file_path}...")
+    df = pd.read_csv(file_path)
+    
+    # Print available columns to help with debugging
+    print("\nAvailable columns in the dataset:")
+    print(df.columns.tolist())
+    
+    # Identify column types
+    numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns.tolist()
+    categorical_cols = df.select_dtypes(include=['object', 'category', 'bool']).columns.tolist()
+    
+    # Handle missing values
+    for col in numeric_cols:
+        df.loc[:, col] = df[col].fillna(df[col].median())
+    
+    for col in categorical_cols:
+        if not df[col].mode().empty:
+            df.loc[:, col] = df[col].fillna(df[col].mode()[0])
+    
+    # Define target columns
+    target_cols = {
+        'approval': 'approved',
+        'credit_limit': 'approved_amount',
+        'interest': 'interest_rate'
     }
     
-    # Evaluate approval accuracy
-    accuracy = accuracy_score(y_true_approved, y_pred_approved)
-    results['approval']['value'] = accuracy
-    results['approval']['pass'] = accuracy >= results['approval']['target']
+    # Define features (exclude target columns and applicant_id)
+    features = [col for col in df.columns if col not in target_cols.values() and col != 'applicant_id']
     
-    # Detailed classification metrics
-    conf_matrix = confusion_matrix(y_true_approved, y_pred_approved)
-    class_report = classification_report(y_true_approved, y_pred_approved, output_dict=True)
+    # Update categorical_cols to only include those in features
+    categorical_cols = [col for col in categorical_cols if col in features]
     
-    # Calculate recall for approvals (class 1)
-    approval_recall = class_report['1']['recall']
-    results['approval']['recall'] = approval_recall
-    results['approval']['recall_target'] = 0.90  # 90% recall
-    results['approval']['recall_pass'] = approval_recall >= 0.90
+    # Split data
+    X = df[features].copy()
+    y_approval = df[target_cols['approval']].copy()
+    y_credit_limit = df[target_cols['credit_limit']].copy()
+    y_interest = df[target_cols['interest']].copy()
     
-    # Evaluate amount prediction (only for approved applications)
-    if y_pred_amount is not None and len(y_true_amount) > 0:
-        # Filter to only look at approved applications
-        approved_indices = y_true_approved == 1
-        if sum(approved_indices) > 0:
-            mae_amount = mean_absolute_error(
-                y_true_amount[approved_indices], 
-                y_pred_amount[approved_indices]
-            )
-            results['amount']['value'] = mae_amount
-            results['amount']['pass'] = mae_amount <= results['amount']['target']
-    
-    # Evaluate interest rate prediction (only for approved applications)
-    if y_pred_rate is not None and len(y_true_rate) > 0:
-        # Filter to only look at approved applications
-        approved_indices = y_true_approved == 1
-        if sum(approved_indices) > 0:
-            mae_rate = mean_absolute_error(
-                y_true_rate[approved_indices], 
-                y_pred_rate[approved_indices]
-            )
-            results['rate']['value'] = mae_rate
-            results['rate']['pass'] = mae_rate <= results['rate']['target']
-    
-    # Check Canadian financial norms (if requested and if we have the necessary data)
-    if canadian_norms and hasattr(X_test, 'columns'):
-        # Calculate DTI (Debt-to-Income ratio) for approved applications
-        if all(col in X_test.columns for col in ['annual_income', 'self_reported_debt']) and 'estimated_debt' in X_test.columns:
-            # Calculate monthly income
-            monthly_income = X_test['annual_income'] / 12
-            
-            # Calculate total debt
-            total_debt = X_test['self_reported_debt']
-            if 'estimated_debt' in X_test.columns:
-                total_debt += X_test['estimated_debt']
-            
-            # Calculate DTI
-            dti = (total_debt / monthly_income) * 100
-            
-            # Check if most approved applications have DTI ≤ 40%
-            approved_dti = dti[y_pred_approved == 1]
-            pct_approved_under_40 = (approved_dti <= 40).mean() * 100
-            
-            results['canadian_norms']['details']['dti_under_40_pct'] = pct_approved_under_40
-            results['canadian_norms']['pass'] = pct_approved_under_40 >= 60  # At least 60% comply
-    
-    # Determine overall pass status
-    results['overall_pass'] = (
-        results['approval']['pass'] and 
-        (results['amount']['pass'] if results['amount']['value'] is not None else True) and
-        (results['rate']['pass'] if results['rate']['value'] is not None else True) and
-        (results['canadian_norms']['pass'] if canadian_norms else True)
+    X_train, X_test, y_train_approval, y_test_approval = train_test_split(
+        X, y_approval, test_size=0.2, random_state=42
     )
     
-    # Create visualizations
+    # Get indices for approved loans in test set
+    approved_indices = y_test_approval == 1
+    
+    # Extract credit limit and interest rate only for approved loans
+    y_test_credit_limit = df.loc[y_test_approval.index[approved_indices], target_cols['credit_limit']]
+    y_test_interest = df.loc[y_test_approval.index[approved_indices], target_cols['interest']]
+    
+    return {
+        'X_test': X_test,
+        'y_test_approval': y_test_approval,
+        'y_test_credit_limit': y_test_credit_limit,
+        'y_test_interest': y_test_interest,
+        'categorical_cols': categorical_cols,
+        'numeric_cols': numeric_cols,
+        'approved_indices': approved_indices,
+        'test_indices': y_test_approval.index
+    }
+
+def preprocess_test_data(X_test, artifacts, categorical_cols):
+    """
+    Preprocess the test data using the artifacts from training
+    
+    Args:
+        X_test: Test features DataFrame
+        artifacts: Dictionary containing preprocessing artifacts
+        categorical_cols: List of categorical columns
+        
+    Returns:
+        Preprocessed test data
+    """
+    # One-hot encode categorical features
+    X_test_encoded = pd.get_dummies(X_test, columns=categorical_cols, drop_first=True)
+    
+    # Ensure test set has same columns as train set
+    X_test_encoded = X_test_encoded.reindex(columns=artifacts['encoded_feature_columns'], fill_value=0)
+    
+    # Scale numeric features
+    X_test_processed = X_test_encoded.copy()
+    X_test_processed[artifacts['scaled_columns']] = artifacts['scaler'].transform(X_test_encoded[artifacts['scaled_columns']])
+    
+    return X_test_processed
+
+def evaluate_models(models, X_test_processed, data):
+    """
+    Evaluate the trained models on the test data
+    
+    Args:
+        models: Dictionary containing the trained models
+        X_test_processed: Preprocessed test features
+        data: Dictionary containing test target variables
+        
+    Returns:
+        Dictionary containing evaluation metrics
+    """
+    # Get predictions
+    y_proba_approval = models['approval_model'].predict_proba(X_test_processed)[:, 1]
+    
+    # Use threshold of 0.5 for approval decision
+    threshold = 0.5
+    y_pred_approval = (y_proba_approval >= threshold).astype(int)
+    
+    # Get credit limit and interest rate predictions for approved loans
+    approved_indices = y_pred_approval == 1
+    X_test_approved = X_test_processed[approved_indices]
+    
+    if len(X_test_approved) > 0:
+        y_pred_credit_limit = models['credit_limit_model'].predict(X_test_approved)
+        y_pred_interest = models['interest_rate_model'].predict(X_test_approved)
+    else:
+        y_pred_credit_limit = np.array([])
+        y_pred_interest = np.array([])
+    
+    # Calculate metrics
+    accuracy = accuracy_score(data['y_test_approval'], y_pred_approval)
+    conf_matrix = confusion_matrix(data['y_test_approval'], y_pred_approval)
+    
+    # Calculate recall, precision, and F1 score for approvals (class 1)
+    recall = recall_score(data['y_test_approval'], y_pred_approval)
+    precision = precision_score(data['y_test_approval'], y_pred_approval)
+    f1 = f1_score(data['y_test_approval'], y_pred_approval)
+    
+    # Calculate MAE for credit limit and interest rate
+    # We need to match the indices of true and predicted values
+    true_approved_indices = data['y_test_approval'] == 1
+    
+    # Get the indices in the original test set that are approved in both true and predicted
+    common_approved_indices = np.logical_and(true_approved_indices, approved_indices)
+    
+    if np.sum(common_approved_indices) > 0:
+        # Get the true values for loans that are approved in both true and predicted
+        true_credit_limit = data['y_test_credit_limit'][common_approved_indices]
+        true_interest = data['y_test_interest'][common_approved_indices]
+        
+        # Get the predicted values for the same loans
+        pred_credit_limit = y_pred_credit_limit[:len(true_credit_limit)]
+        pred_interest = y_pred_interest[:len(true_interest)]
+        
+        # Calculate MAE
+        mae_credit_limit = mean_absolute_error(true_credit_limit, pred_credit_limit)
+        mae_interest = mean_absolute_error(true_interest, pred_interest)
+    else:
+        mae_credit_limit = None
+        mae_interest = None
+    
+    return {
+        'accuracy': accuracy,
+        'recall': recall,
+        'precision': precision,
+        'f1': f1,
+        'conf_matrix': conf_matrix,
+        'mae_credit_limit': mae_credit_limit,
+        'mae_interest': mae_interest,
+        'y_pred_approval': y_pred_approval,
+        'y_pred_credit_limit': y_pred_credit_limit if len(X_test_approved) > 0 else None,
+        'y_pred_interest': y_pred_interest if len(X_test_approved) > 0 else None,
+        'true_approved_indices': true_approved_indices,
+        'pred_approved_indices': approved_indices,
+        'common_approved_indices': np.logical_and(true_approved_indices, approved_indices) if len(X_test_approved) > 0 else None
+    }
+
+def visualize_results(metrics, data):
+    """
+    Create visualizations of the model evaluation results
+    
+    Args:
+        metrics: Dictionary containing evaluation metrics
+        data: Dictionary containing test data
+        
+    Returns:
+        Matplotlib figure with visualizations
+    """
     plt.figure(figsize=(16, 12))
     
     # Confusion Matrix
     plt.subplot(2, 2, 1)
-    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', 
+    sns.heatmap(metrics['conf_matrix'], annot=True, fmt='d', cmap='Blues', 
                 xticklabels=['Denied', 'Approved'], 
                 yticklabels=['Denied', 'Approved'])
     plt.title('Confusion Matrix')
@@ -169,8 +246,8 @@ def evaluate_loc_model(model, X_test, y_test, canadian_norms=True):
     # Approval Distribution
     plt.subplot(2, 2, 2)
     labels = ['Denied', 'Approved']
-    true_counts = [sum(y_true_approved == 0), sum(y_true_approved == 1)]
-    pred_counts = [sum(y_pred_approved == 0), sum(y_pred_approved == 1)]
+    true_counts = [sum(data['y_test_approval'] == 0), sum(data['y_test_approval'] == 1)]
+    pred_counts = [sum(metrics['y_pred_approval'] == 0), sum(metrics['y_pred_approval'] == 1)]
     
     x = np.arange(len(labels))
     width = 0.35
@@ -181,24 +258,28 @@ def evaluate_loc_model(model, X_test, y_test, canadian_norms=True):
     plt.title('Approval Distribution')
     plt.legend()
     
-    # Amount Prediction Error (if available)
-    if y_pred_amount is not None and len(y_true_amount) > 0:
+    # Amount Prediction Error
+    if metrics['y_pred_credit_limit'] is not None and len(metrics['y_pred_credit_limit']) > 0:
         plt.subplot(2, 2, 3)
-        approved_indices = y_true_approved == 1
-        if sum(approved_indices) > 0:
-            error = y_pred_amount[approved_indices] - y_true_amount[approved_indices]
+        common_approved_indices = metrics['common_approved_indices']
+        if np.sum(common_approved_indices) > 0:
+            true_credit_limit = data['y_test_credit_limit'][common_approved_indices]
+            pred_credit_limit = metrics['y_pred_credit_limit'][:len(true_credit_limit)]
+            error = pred_credit_limit - true_credit_limit
             plt.hist(error, bins=30, alpha=0.7)
             plt.axvline(x=0, color='r', linestyle='--')
             plt.title('Amount Prediction Error')
             plt.xlabel('Predicted - True Amount ($)')
             plt.ylabel('Count')
     
-    # Rate Prediction Error (if available)
-    if y_pred_rate is not None and len(y_true_rate) > 0:
+    # Rate Prediction Error
+    if metrics['y_pred_interest'] is not None and len(metrics['y_pred_interest']) > 0:
         plt.subplot(2, 2, 4)
-        approved_indices = y_true_approved == 1
-        if sum(approved_indices) > 0:
-            error = y_pred_rate[approved_indices] - y_true_rate[approved_indices]
+        common_approved_indices = metrics['common_approved_indices']
+        if np.sum(common_approved_indices) > 0:
+            true_interest = data['y_test_interest'][common_approved_indices]
+            pred_interest = metrics['y_pred_interest'][:len(true_interest)]
+            error = pred_interest - true_interest
             plt.hist(error, bins=30, alpha=0.7)
             plt.axvline(x=0, color='r', linestyle='--')
             plt.title('Rate Prediction Error')
@@ -206,135 +287,87 @@ def evaluate_loc_model(model, X_test, y_test, canadian_norms=True):
             plt.ylabel('Count')
     
     plt.tight_layout()
+    return plt.gcf()
+
+def print_evaluation_report(metrics):
+    """
+    Print a detailed evaluation report
     
-    # Generate detailed report
+    Args:
+        metrics: Dictionary containing evaluation metrics
+    """
     print("\n" + "="*50)
     print("LINE OF CREDIT MODEL EVALUATION REPORT")
     print("="*50)
     
     print("\nAPPROVAL PREDICTION:")
-    print(f"Accuracy: {accuracy:.4f} (Target: ≥ {results['approval']['target']:.2f}) - {'PASS' if results['approval']['pass'] else 'FAIL'}")
-    print(f"Recall (Approvals): {approval_recall:.4f} (Target: ≥ {results['approval']['recall_target']:.2f}) - {'PASS' if results['approval']['recall_pass'] else 'FAIL'}")
+    print(f"Accuracy: {metrics['accuracy']:.4f} (Target: ≥ 0.85) - {'PASS' if metrics['accuracy'] >= 0.85 else 'FAIL'}")
+    print(f"Recall (Approvals): {metrics['recall']:.4f} (Target: ≥ 0.90) - {'PASS' if metrics['recall'] >= 0.90 else 'FAIL'}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"F1 Score: {metrics['f1']:.4f}")
+    
     print("\nConfusion Matrix:")
-    print(conf_matrix)
+    print(metrics['conf_matrix'])
     
-    if y_pred_amount is not None and results['amount']['value'] is not None:
+    if metrics['mae_credit_limit'] is not None:
         print("\nCREDIT LIMIT PREDICTION:")
-        print(f"MAE: ${results['amount']['value']:.2f} (Target: ≤ ${results['amount']['target']}) - {'PASS' if results['amount']['pass'] else 'FAIL'}")
+        print(f"MAE: ${metrics['mae_credit_limit']:.2f} (Target: ≤ $2,000) - {'PASS' if metrics['mae_credit_limit'] <= 2000 else 'FAIL'}")
     
-    if y_pred_rate is not None and results['rate']['value'] is not None:
+    if metrics['mae_interest'] is not None:
         print("\nINTEREST RATE PREDICTION:")
-        print(f"MAE: {results['rate']['value']:.4f}% (Target: ≤ {results['rate']['target']}%) - {'PASS' if results['rate']['pass'] else 'FAIL'}")
-    
-    if canadian_norms and 'dti_under_40_pct' in results['canadian_norms']['details']:
-        print("\nCANADIAN FINANCIAL NORMS:")
-        print(f"% of Approved with DTI ≤ 40%: {results['canadian_norms']['details']['dti_under_40_pct']:.2f}% - {'PASS' if results['canadian_norms']['pass'] else 'FAIL'}")
+        print(f"MAE: {metrics['mae_interest']:.4f}% (Target: ≤ 1.0%) - {'PASS' if metrics['mae_interest'] <= 1.0 else 'FAIL'}")
     
     print("\nOVERALL EVALUATION:")
-    print(f"Status: {'PASS' if results['overall_pass'] else 'FAIL'}")
+    overall_pass = (
+        metrics['accuracy'] >= 0.85 and 
+        metrics['recall'] >= 0.90 and 
+        (metrics['mae_credit_limit'] is None or metrics['mae_credit_limit'] <= 2000) and 
+        (metrics['mae_interest'] is None or metrics['mae_interest'] <= 1.0)
+    )
+    print(f"Status: {'PASS' if overall_pass else 'FAIL'}")
     print("="*50)
-    
-    return results, plt.gcf()
 
-
-def run_evaluation_example():
+def save_visualization(fig, output_path=None):
     """
-    Example usage of the evaluation function with a dummy model
+    Save the visualization to a file
+    
+    Args:
+        fig: Matplotlib figure
+        output_path: Path to save the figure
     """
-    # Create a dummy model class for demonstration
-    class DummyLOCModel:
-        def predict(self, X):
-            # Return 3 columns: approval (0/1), amount, rate
-            n_samples = len(X)
-            approvals = np.random.binomial(1, 0.7, n_samples)  # 70% approval rate
-            
-            # Generate reasonable amounts and rates
-            amounts = np.zeros(n_samples)
-            rates = np.zeros(n_samples)
-            
-            for i in range(n_samples):
-                if approvals[i] == 1:
-                    # Amounts between $1,000 and $25,000
-                    amounts[i] = np.random.uniform(1000, 25000)
-                    # Rates between 3% and 15%
-                    rates[i] = np.random.uniform(3, 15)
-            
-            return np.column_stack((approvals, amounts, rates))
+    if output_path is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        output_path = os.path.join(script_dir, 'loc_model_evaluation.png')
     
-    # Create dummy test data
-    np.random.seed(42)  # For reproducibility
-    n_samples = 1000
-    
-    # Create feature data
-    X_test = pd.DataFrame({
-        'annual_income': np.random.lognormal(mean=11, sigma=0.5, size=n_samples),
-        'self_reported_debt': np.random.uniform(500, 5000, n_samples),
-        'self_reported_expenses': np.random.uniform(500, 5000, n_samples),
-        'requested_amount': np.random.uniform(1000, 50000, n_samples),
-        'credit_score': np.random.normal(680, 100, n_samples).clip(300, 900),
-        'credit_utilization': np.random.beta(2, 5, n_samples) * 100,
-        'estimated_debt': np.random.uniform(100, 1000, n_samples)
-    })
-    
-    # Create target data
-    y_true_approved = np.random.binomial(1, 0.65, n_samples)  # 65% approval rate
-    
-    y_true_amount = np.zeros(n_samples)
-    y_true_rate = np.zeros(n_samples)
-    
-    for i in range(n_samples):
-        if y_true_approved[i] == 1:
-            # Set amounts based on income
-            monthly_income = X_test['annual_income'].iloc[i] / 12
-            base_limit = min(monthly_income * 5, 25000)
-            
-            # Adjust based on credit score
-            credit_score = X_test['credit_score'].iloc[i]
-            if credit_score >= 750:
-                credit_factor = 1.0
-            elif credit_score >= 660:
-                credit_factor = 0.8
-            else:
-                credit_factor = 0.6
-                
-            y_true_amount[i] = base_limit * credit_factor
-            
-            # Set rates based on credit score
-            if credit_score >= 750:
-                y_true_rate[i] = np.random.uniform(3, 6)
-            elif credit_score >= 660:
-                y_true_rate[i] = np.random.uniform(5, 9)
-            else:
-                y_true_rate[i] = np.random.uniform(8, 15)
-    
-    # Create y_test dictionary
-    y_test = {
-        'approved': y_true_approved,
-        'approved_amount': y_true_amount,
-        'interest_rate': y_true_rate
-    }
-    
-    # Create and evaluate the model
-    model = DummyLOCModel()
-    results, fig = evaluate_loc_model(model, X_test, y_test)
-    
-    # Display the results
-    print("\nEvaluation Results Summary:")
-    print(f"Approval Accuracy: {results['approval']['value']:.4f} - {'PASS' if results['approval']['pass'] else 'FAIL'}")
-    if results['amount']['value'] is not None:
-        print(f"Amount MAE: ${results['amount']['value']:.2f} - {'PASS' if results['amount']['pass'] else 'FAIL'}")
-    if results['rate']['value'] is not None:
-        print(f"Rate MAE: {results['rate']['value']:.4f}% - {'PASS' if results['rate']['pass'] else 'FAIL'}")
-    print(f"Canadian Norms: {'PASS' if results['canadian_norms']['pass'] else 'FAIL'}")
-    print(f"Overall: {'PASS' if results['overall_pass'] else 'FAIL'}")
-    
-    # Save the figure
-    fig.savefig('loc_model_evaluation.png')
-    print("\nEvaluation plots saved to 'loc_model_evaluation.png'")
-    
-    return results
+    fig.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Visualization saved to {output_path}")
 
+def main():
+    """
+    Main function to run the evaluation
+    """
+    # Load models and artifacts
+    models_artifacts = load_models_and_artifacts()
+    
+    # Load and preprocess data
+    data = load_and_preprocess_data()
+    
+    # Preprocess test data
+    X_test_processed = preprocess_test_data(
+        data['X_test'], 
+        models_artifacts, 
+        data['categorical_cols']
+    )
+    
+    # Evaluate models
+    metrics = evaluate_models(models_artifacts, X_test_processed, data)
+    
+    # Print evaluation report
+    print_evaluation_report(metrics)
+    
+    # Create and save visualizations
+    fig = visualize_results(metrics, data)
+    save_visualization(fig)
 
 if __name__ == "__main__":
-    # Run the example
-    run_evaluation_example()
+    main()
