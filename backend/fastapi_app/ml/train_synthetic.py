@@ -302,8 +302,9 @@ def get_feature_importance(model, feature_names, top_n=10):
             print(f"{i+1}. {feature_names[indices[i]]}: {importances[indices[i]]:.4f}")
 
 def main():
-    # Set file path
-    file_path = '../datasets/data/synthetic_loan_applications.csv'
+    # Set file path - updated to use correct path relative to script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(os.path.dirname(script_dir), 'datasets', 'data', 'synthetic_loan_applications.csv')
     
     # Print model accuracy goals
     print("\n" + "="*50)

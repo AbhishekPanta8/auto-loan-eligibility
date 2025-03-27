@@ -62,3 +62,4 @@ backend/fastapi_app/ml/models/*.pkl
 
 .venv
 .env
+*.pyc

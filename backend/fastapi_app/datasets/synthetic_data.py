@@ -465,10 +465,14 @@ def main():
     diagnose_dti_components(df_merged)
 
     # 6) Save
-    os.makedirs("data", exist_ok=True)
-    df_applicant.to_csv("data/applicant_dataset.csv", index=False)
-    df_credit.to_csv("data/third_party_dataset.csv", index=False)
-    df_merged.to_csv("data/synthetic_loan_applications.csv", index=False)
+    # Create data directory inside datasets/data folder
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(script_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    df_applicant.to_csv(os.path.join(data_dir, "applicant_dataset.csv"), index=False)
+    df_credit.to_csv(os.path.join(data_dir, "third_party_dataset.csv"), index=False)
+    df_merged.to_csv(os.path.join(data_dir, "synthetic_loan_applications.csv"), index=False)
 
     print("[INFO] Applicant dataset shape:", df_applicant.shape)
     print("[INFO] Third-party dataset shape:", df_credit.shape)
