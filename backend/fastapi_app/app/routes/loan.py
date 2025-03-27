@@ -10,6 +10,7 @@ from app.services.equifax_api import EquifaxAPI
 from app.services.loan import transform_loan_application  # if additional transformation is needed
 import logging
 from dotenv import load_dotenv
+from app.services.explanation_service import ExplanationService
 
 # Load environment variables
 load_dotenv()
@@ -48,6 +49,13 @@ EMPLOYMENT_MAPPING = {
 
 # Initialize Equifax API client
 equifax_api = EquifaxAPI()
+
+# Initialize explanation service
+explanation_service = ExplanationService(
+    model_path=os.path.join(MODEL_DIR, "approval_model.pkl"),
+    scaler_path=os.path.join(MODEL_DIR, "scaler.pkl"),
+    feature_columns_path=os.path.join(MODEL_DIR, "encoded_feature_columns.pkl")
+)
 
 def apply_business_rules(
     loan_approval: int, 
@@ -254,10 +262,10 @@ def predict_loan_eligibility(application: LoanApplication):
         }
         print("raw_features", raw_features)
         # Create a DataFrame from raw features
-        input_df = pd.DataFrame([raw_features])
+        X = pd.DataFrame([raw_features])
 
         # One-hot encode categorical variables (using drop_first=True as in training)
-        input_encoded = pd.get_dummies(input_df, drop_first=True)
+        input_encoded = pd.get_dummies(X, drop_first=True)
 
         # Reindex to ensure the same order and columns as used during training.
         input_encoded = input_encoded.reindex(columns=encoded_feature_columns, fill_value=0)
@@ -277,40 +285,53 @@ def predict_loan_eligibility(application: LoanApplication):
         # Optional: Log the processed input for debugging.
         logger.debug(f"Processed input for prediction: {input_processed.to_dict(orient='records')[0]}")
 
-        # Make predictions using the processed input
-        approval_prob = clf_model.predict_proba(input_processed)[0][1]
-        print("approval_prob", approval_prob)
-        # Apply configurable threshold from .env
-        loan_approval = 1 if approval_prob >= APPROVAL_THRESHOLD else 0
-        print("APPROVAL_THRESHOLD", APPROVAL_THRESHOLD)
-        estimated_loan_amount = None
-        estimated_interest_rate = None
-
+        # Get model prediction
+        loan_approval = clf_model.predict(input_processed)[0]
+        approval_probability = clf_model.predict_proba(input_processed)[0][1]
+        rejection_probability = 1 - approval_probability
+        
+        # Get explanation if loan is rejected
+        explanation = None
+        if loan_approval == 0:
+            explanation = explanation_service.get_rejection_explanation(
+                raw_features,  # Pass raw features instead of scaled
+                rejection_probability
+            )
+        
+        # Get loan amount and interest rate predictions only if approved
         if loan_approval == 1:
-            estimated_loan_amount = reg_loan_model.predict(input_processed)[0]
-            estimated_interest_rate = reg_interest_model.predict(input_processed)[0]
+            estimated_loan_amount = float(reg_loan_model.predict(input_processed)[0])
+            estimated_interest_rate = float(reg_interest_model.predict(input_processed)[0])
         else:
             estimated_loan_amount = 0.0
             estimated_interest_rate = 0.0
-            
+        
         # Calculate DTI percentage for business rules
         dti = debt_to_income_ratio * 100  # Convert to percentage
         
         # Apply business rules
-        loan_approval, estimated_loan_amount, estimated_interest_rate = apply_business_rules(
-            loan_approval=loan_approval,
-            estimated_loan_amount=estimated_loan_amount,
-            estimated_interest_rate=estimated_interest_rate,
-            credit_score=credit_score,
-            dti=dti,
-            application=application
+        final_approval, final_amount, final_rate = apply_business_rules(
+            loan_approval,
+            estimated_loan_amount,
+            estimated_interest_rate,
+            credit_score,
+            dti,
+            application
         )
-
+        
+        # Ensure zero amounts for rejected loans
+        if not final_approval:
+            final_amount = 0.0
+            final_rate = 0.0
+        
         return LoanPredictionResponse(
-            loan_approved=bool(loan_approval),
-            approved_amount=estimated_loan_amount,
-            interest_rate=estimated_interest_rate,
-            credit_report=credit_report
+            loan_approved=bool(final_approval),
+            approved_amount=final_amount,
+            interest_rate=final_rate,
+            credit_report=credit_report,
+            explanation=explanation,
+            approval_probability=approval_probability,
+            rejection_probability=rejection_probability
         )
     except Exception as e:
         logger.exception("Error predicting loan eligibility")

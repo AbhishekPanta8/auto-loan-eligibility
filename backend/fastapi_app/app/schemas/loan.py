@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, Literal
+from typing import Optional, Literal, List, Dict, Any
 from enum import Enum
 
 class EmploymentStatus(str, Enum):
@@ -97,8 +97,22 @@ class CreditReport(BaseModel):
     total_credit_limit: float
     total_debt: float
     
+class ExplanationFactor(BaseModel):
+    feature: str
+    impact: float
+    direction: str
+
+class LoanExplanation(BaseModel):
+    technical_details: Dict[str, Any]
+    rejection_probability: float
+    main_factors: List[str]
+    improvement_suggestions: List[str]
+
 class LoanPredictionResponse(BaseModel):
     loan_approved: bool
     approved_amount: float
     interest_rate: float
     credit_report: Optional[CreditReport] = None
+    explanation: Optional[LoanExplanation] = None
+    approval_probability: float
+    rejection_probability: float
