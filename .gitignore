@@ -54,5 +54,11 @@ backend/fastapi_app/models
 backend/fastapi_app/models/
 backend/fastapi_app/models/*
 
+backend/fastapi_app/ml/models
+backend/fastapi_app/ml/models/
+backend/fastapi_app/ml/models/*
+backend/fastapi_app/ml/models/*.pkl
+
+
 .venv
 .env

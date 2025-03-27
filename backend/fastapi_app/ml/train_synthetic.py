@@ -15,7 +15,6 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
 
 
 def create_model_directory():
@@ -358,6 +357,14 @@ def main():
     
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Save splits to ../datasets/splits relative to this file
+    splits_dir = os.path.join(os.path.dirname(__file__), "../datasets/splits")
+    os.makedirs(splits_dir, exist_ok=True)
+    X_train.to_csv(os.path.join(splits_dir, "X_train.csv"), index=False)
+    X_test.to_csv(os.path.join(splits_dir, "X_test.csv"), index=False)
+    np.save(os.path.join(splits_dir, "y_train.npy"), y_train)
+    np.save(os.path.join(splits_dir, "y_test.npy"), y_test)
     
     # --- Updated Encoding and Scaling for Approval Model ---
     # One-hot encode categorical features for training and test sets using drop_first=True as in training.

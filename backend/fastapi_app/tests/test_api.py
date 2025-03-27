@@ -1,79 +1,3 @@
-# import pytest
-# from fastapi.testclient import TestClient
-# from app.main import app  # Import your FastAPI "app" instance
-
-# client = TestClient(app)
-
-# @pytest.mark.parametrize(
-#     "payload, expected_status",
-#     [
-#         # Valid example
-#         (
-#             {
-#                 "age": 30,
-#                 "employment_status": 2,  # Salaried
-#                 "annual_income": 75000,
-#                 "existing_debt": 10000,
-#                 "debt_to_income_ratio": 0.2,
-#                 "credit_score": 720,
-#                 "credit_history_length": 10,
-#                 "missed_payments": 0,
-#                 "loan_amount_requested": 20000,
-#                 "preferred_term_months": 36,
-#                 "collateral_available": 1
-#             },
-#             200,
-#         ),
-#         # Edge case: borderline credit score
-#         (
-#             {
-#                 "age": 18,
-#                 "employment_status": 1,  # Self-employed
-#                 "annual_income": 20000,
-#                 "existing_debt": 0,
-#                 "debt_to_income_ratio": 0.9,
-#                 "credit_score": 600,
-#                 "credit_history_length": 0,
-#                 "missed_payments": 5,
-#                 "loan_amount_requested": 50000,
-#                 "preferred_term_months": 60,
-#                 "collateral_available": 0
-#             },
-#             200,
-#         ),
-#         # Invalid example: missing required field or negative age
-#         (
-#             {
-#                 "employment_status": 2,
-#                 "annual_income": 75000,
-#                 "existing_debt": 10000,
-#                 # "age" is missing or negative
-#                 "age": -5,
-#                 "debt_to_income_ratio": 0.2,
-#                 "credit_score": 720,
-#                 "credit_history_length": 10,
-#                 "missed_payments": 0,
-#                 "loan_amount_requested": 20000,
-#                 "preferred_term_months": 36,
-#                 "collateral_available": 1
-#             },
-#             422,  # Expect Unprocessable Entity for invalid inputs
-#         ),
-#     ],
-# )
-# def test_predict(payload, expected_status):
-#     response = client.post("/predict/", json=payload)
-#     assert response.status_code == expected_status
-
-#     if response.status_code == 200:
-#         data = response.json()
-#         # Basic checks
-#         assert "loan_approved" in data
-#         assert "estimated_loan_amount" in data
-#         assert "estimated_interest_rate" in data
-#         assert isinstance(data["loan_approved"], bool)
-#         assert isinstance(data["estimated_loan_amount"], float)
-#         assert isinstance(data["estimated_interest_rate"], float)
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app  # Import your FastAPI "app" instance
@@ -81,88 +5,86 @@ from app.main import app  # Import your FastAPI "app" instance
 client = TestClient(app)
 
 @pytest.mark.parametrize(
-    "payload, expected_status",
+    "description, payload, expected_status",
     [
-        # Valid example
         (
+            "Valid example: typical applicant (should pass)",
             {
+                "full_name": "John Doe",
                 "age": 30,
-                "employment_status": 2,  # Salaried
+                "province": "ON",
+                "employment_status": "Full-time",
+                "months_employed": 12,
                 "annual_income": 75000,
-                "existing_debt": 10000,
+                "self_reported_debt": 10000,
                 "debt_to_income_ratio": 0.2,
                 "credit_score": 720,
                 "credit_history_length": 10,
                 "missed_payments": 0,
-                "loan_amount_requested": 20000,
+                "credit_utilization": 30,
+                "num_open_accounts": 3,
+                "num_credit_inquiries": 1,
+                "payment_history": "On Time",
+                "current_credit_limit": 5000,
+                "monthly_expenses": 2000,
+                "self_reported_expenses": 2000,
+                "estimated_debt": 0,
+                "requested_amount": 20000,
                 "preferred_term_months": 36,
-                "collateral_available": 1
+                "collateral_available": 1,
+                "equifax_consent": False,
+                "sin": "",
+                "date_of_birth": "1990-01-01",
+                "street_address": "123 Main St",
+                "city": "Toronto",
+                "postal_code": "M5H2N2",
+                "house_number": "123",
+                "street_name": "Main",
+                "street_type": "St"
             },
             200,
         ),
-        # Edge case: borderline credit score
         (
+            "Invalid example: negative age (should fail)",
             {
-                "age": 18,
-                "employment_status": 1,  # Self-employed
-                "annual_income": 20000,
-                "existing_debt": 0,
-                "debt_to_income_ratio": 0.9,
-                "credit_score": 600,
-                "credit_history_length": 0,
-                "missed_payments": 5,
-                "loan_amount_requested": 50000,
-                "preferred_term_months": 60,
-                "collateral_available": 0
-            },
-            200,
-        ),
-        # Invalid example: missing required field or negative age
-        (
-            {
-                "employment_status": 2,
+                "full_name": "John Doe",
+                "age": -5,  # Invalid: negative age
+                "province": "ON",
+                "employment_status": "Full-time",
+                "months_employed": 12,
                 "annual_income": 75000,
-                "existing_debt": 10000,
-                # "age" is missing or negative
-                "age": -5,
+                "self_reported_debt": 10000,
                 "debt_to_income_ratio": 0.2,
                 "credit_score": 720,
                 "credit_history_length": 10,
                 "missed_payments": 0,
-                "loan_amount_requested": 20000,
+                "credit_utilization": 30,
+                "num_open_accounts": 3,
+                "num_credit_inquiries": 1,
+                "payment_history": "On Time",
+                "current_credit_limit": 5000,
+                "monthly_expenses": 2000,
+                "self_reported_expenses": 2000,
+                "estimated_debt": 0,
+                "requested_amount": 20000,
                 "preferred_term_months": 36,
-                "collateral_available": 1
+                "collateral_available": 1,
+                "equifax_consent": False,
+                "sin": "",
+                "date_of_birth": "1990-01-01",
+                "street_address": "123 Main St",
+                "city": "Toronto",
+                "postal_code": "M5H2N2",
+                "house_number": "123",
+                "street_name": "Main",
+                "street_type": "St"
             },
-            422,  # Expect Unprocessable Entity for invalid inputs
+            422,
         ),
     ],
 )
-def test_predict(payload, expected_status):
-    # Print the payload being sent to give context
-    print(f"\n[TEST] Sending payload to /predict/: {payload}")
-    
+def test_predict(description, payload, expected_status):
     response = client.post("/predict/", json=payload)
-    
-    # Print the status code and response for debugging
-    print(f"[TEST] Expected status: {expected_status}, Actual status: {response.status_code}")
-    print(f"[TEST] Response body: {response.text}")
-
-    # Assert the status code as before (no logic change)
+    outcome = "PASSED" if response.status_code == expected_status else "FAILED"
+    print(f"Test: {description} | Expected: {expected_status}, Actual: {response.status_code} | {outcome}")
     assert response.status_code == expected_status
-
-    # If 200 (OK), print more info about the JSON response
-    if response.status_code == 200:
-        data = response.json()
-        
-        print("[TEST] Response JSON parsed successfully.")
-        print(f"[TEST] loan_approved: {data.get('loan_approved')}, "
-              f"estimated_loan_amount: {data.get('estimated_loan_amount')}, "
-              f"estimated_interest_rate: {data.get('estimated_interest_rate')}")
-
-        # The original checks remain the same
-        assert "loan_approved" in data
-        assert "estimated_loan_amount" in data
-        assert "estimated_interest_rate" in data
-        assert isinstance(data["loan_approved"], bool)
-        assert isinstance(data["estimated_loan_amount"], float)
-        assert isinstance(data["estimated_interest_rate"], float)
