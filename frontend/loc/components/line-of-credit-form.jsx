@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import ApprovalChart from './ui/RejectionChart'
 
 export function LineOfCreditForm() {
   const [step, setStep] = useState(1)
@@ -945,6 +946,27 @@ export function LineOfCreditForm() {
                     </div>
                   )}
                 </div>
+
+                {!result.loan_approved && result.explanation && (
+                  <div className="mt-8">
+                    <ApprovalChart 
+                      featureImportance={result.explanation.technical_details.feature_importance}
+                      baseValue={result.explanation.technical_details.base_value}
+                      approvalProbability={result.approval_probability}
+                    />
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="text-lg font-semibold mb-2 text-gray-800">Understanding Your Results</h4>
+                      <p className="text-gray-600 mb-2">
+                        The chart above shows the top 5 factors that influenced your loan decision. 
+                        Each factor's impact is shown as a percentage of the total decision.
+                      </p>
+                      <p className="text-gray-600">
+                        Green markers indicate the threshold values you need to meet or exceed for a better chance of approval.
+                        Focus on improving these factors to increase your chances of approval.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>

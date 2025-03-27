@@ -102,11 +102,13 @@ class ExplanationFactor(BaseModel):
     impact: float
     direction: str
 
+class TechnicalDetails(BaseModel):
+    feature_importance: Dict[str, float]
+    base_value: float
+
 class LoanExplanation(BaseModel):
-    technical_details: Dict[str, Any]
+    technical_details: TechnicalDetails
     rejection_probability: float
-    main_factors: List[str]
-    improvement_suggestions: List[str]
 
 class LoanPredictionResponse(BaseModel):
     loan_approved: bool

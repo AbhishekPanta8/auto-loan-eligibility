@@ -104,170 +104,25 @@ class ExplanationService:
                 reverse=True
             )
             
-            # Get top contributing factors
-            top_factors = []
-            for feature, impact in sorted_features[:5]:  # Get top 5 factors
-                impact_type = "positive" if impact > 0 else "negative"
-                # Clean up feature names for display
-                display_feature = feature
-                for prefix in ['employment_status_', 'payment_history_', 'province_']:
-                    if feature.startswith(prefix):
-                        display_feature = feature.replace(prefix, '')
-                top_factors.append({
-                    "feature": display_feature,
-                    "impact": abs(impact),
-                    "direction": impact_type
-                })
-                
             return {
                 "feature_importance": dict(sorted_features),
                 "base_value": float(self.explainer.expected_value if not isinstance(self.explainer.expected_value, list) 
-                                  else self.explainer.expected_value[0]),
-                "top_factors": top_factors
+                                  else self.explainer.expected_value[0])
             }
+            
         except Exception as e:
             print(f"Error in explain_prediction: {str(e)}")
             raise
         
     def get_rejection_explanation(self, input_data: Dict[str, Any], prediction_probability: float) -> Dict[str, Any]:
         """
-        Get a human-readable explanation for loan rejection
+        Get explanation for loan rejection with only feature importance and base value
         """
         explanation = self.explain_prediction(input_data)
         
-        # Define thresholds and severity levels
-        THRESHOLDS = {
-            'credit_score': 660,  # Minimum for good approval chances
-            'DTI': 40,  # Maximum DTI ratio
-            'credit_utilization': 30,  # Maximum recommended utilization
-            'annual_income': 40000,  # Minimum recommended income
-            'months_employed': 12,  # Minimum preferred employment duration
-            'estimated_debt_ratio': 0.4  # Maximum ratio of estimated debt to annual income
-        }
-        
-        # Generate natural language explanation
-        rejection_reasons = []
-        improvement_suggestions = []
-        
-        # Use original values for explanations
-        original_values = input_data  # Now using raw features directly
-        
-        # Calculate some derived metrics for better context
-        annual_income = original_values.get('annual_income', 0)
-        monthly_income = annual_income / 12 if annual_income > 0 else 0
-        estimated_debt = original_values.get('estimated_debt', 0)
-        self_reported_debt = original_values.get('self_reported_debt', 0)
-        total_debt = estimated_debt + self_reported_debt
-        debt_to_income = total_debt / annual_income if annual_income > 0 else 0
-        
-        for factor in explanation["top_factors"]:
-            feature = factor["feature"].replace("_", " ")
-            severity = "significantly " if factor["impact"] > 1.5 else ""
-            high_severity = factor["impact"] > 2.0
-            
-            # Negative SHAP values decrease approval probability
-            if factor["direction"] == "negative":
-                if "payment_history" in factor["feature"]:
-                    if "Late" in factor["feature"] and high_severity:
-                        payment_history = original_values.get('payment_history', 'Unknown')
-                        rejection_reasons.append(
-                            f"Your payment history shows {severity}concerning patterns that strongly affect your approval chances"
-                        )
-                        improvement_suggestions.append(
-                            "Establish a solid record of on-time payments for all credit accounts for at least 12 months"
-                        )
-                        if payment_history in ["Late<30", "Late>60"]:
-                            improvement_suggestions.append(
-                                "Address any outstanding late payments and ensure all accounts are current"
-                            )
-                
-                elif "months_employed" in factor["feature"]:
-                    months = original_values.get('months_employed', 'N/A')
-                    if months != 'N/A':
-                        if months < THRESHOLDS['months_employed']:
-                            rejection_reasons.append(
-                                f"Your employment duration of {months} months is below our preferred minimum "
-                                f"of {THRESHOLDS['months_employed']} months"
-                            )
-                            improvement_suggestions.append(
-                                f"Consider reapplying after maintaining stable employment for at least "
-                                f"{THRESHOLDS['months_employed']} months"
-                            )
-                
-                elif "debt" in factor["feature"] or "DTI" in factor["feature"]:
-                    if debt_to_income > 0:
-                        ratio_pct = debt_to_income * 100
-                        rejection_reasons.append(
-                            f"Your total debt of ${total_debt:,.2f} represents {ratio_pct:.1f}% of your "
-                            f"annual income, which is {severity}high"
-                        )
-                        improvement_suggestions.append(
-                            f"Work on reducing your total debt or increasing your income to improve your "
-                            f"debt-to-income ratio"
-                        )
-                
-                elif "credit_score" in factor["feature"]:
-                    credit_score = original_values.get('credit_score', 'N/A')
-                    if credit_score != 'N/A':
-                        gap = THRESHOLDS['credit_score'] - credit_score
-                        if gap > 0:
-                            rejection_reasons.append(
-                                f"Your credit score of {credit_score} is {severity}below our threshold "
-                                f"of {THRESHOLDS['credit_score']} for automatic approval"
-                            )
-                            improvement_suggestions.append(
-                                f"Work on improving your credit score by at least {gap} points through "
-                                f"timely payments and reducing credit utilization"
-                            )
-                
-            # Positive SHAP values increase approval probability
-            else:
-                if "payment_history" in factor["feature"] and "On Time" in factor["feature"]:
-                    # This is a positive factor, so we don't add it to rejection reasons
-                    continue
-                
-                elif "estimated_debt" in factor["feature"] and debt_to_income > THRESHOLDS['estimated_debt_ratio']:
-                    rejection_reasons.append(
-                        f"While your estimated debt level is within acceptable ranges, your total "
-                        f"debt-to-income ratio of {debt_to_income*100:.1f}% is concerning"
-                    )
-                    improvement_suggestions.append(
-                        "Consider reducing your overall debt burden before applying for additional credit"
-                    )
-                
-                elif "credit_score" in factor["feature"]:
-                    credit_score = original_values.get('credit_score', 'N/A')
-                    if credit_score != 'N/A':
-                        rejection_reasons.append(
-                            f"Your credit score of {credit_score} is favorable, but is outweighed by "
-                            f"other risk factors in your application"
-                        )
-                
-                elif "employment" in factor["feature"]:
-                    status = original_values.get('employment_status', 'N/A')
-                    months = original_values.get('months_employed', 'N/A')
-                    if months != 'N/A':
-                        rejection_reasons.append(
-                            f"Your {status} employment status for {months} months is positive, but "
-                            f"other factors in your application present higher risk"
-                        )
-                    
-        # Add overall risk assessment if rejection probability is high
-        if prediction_probability > 0.6:
-            rejection_reasons.append(
-                f"Overall, your application shows a {prediction_probability*100:.1f}% likelihood of default "
-                f"based on our risk assessment model"
-            )
-            improvement_suggestions.append(
-                "Consider working on multiple factors simultaneously: payment history, debt reduction, "
-                "and credit score improvement"
-            )
-                
         return {
             "technical_details": explanation,
-            "rejection_probability": prediction_probability,
-            "main_factors": rejection_reasons,
-            "improvement_suggestions": list(set(improvement_suggestions))  # Remove duplicates
+            "rejection_probability": prediction_probability
         }
         
     def _generate_improvement_suggestions(self, top_factors: List[Dict[str, Any]]) -> List[str]:
