@@ -9,10 +9,10 @@ const COLORS = {
   'months_employed': '#FF6B6B',
   'others': '#D4D4D4',
   'empty': '#e0e0e0',        // Light grey for empty space
-  'potential': '#ffeb3b',    // Yellow for potential gain (was orange/amber)
+  'potential': '#e74c3c',    // Changed from yellow (#ffeb3b) to red
   'approval': '#2ecc71',     // Bright green for approval
   'rejection': '#e0e0e0',    // Light grey for rejection
-  'threshold': '#ffeb3b'     // Yellow for threshold gap
+  'threshold': '#e74c3c'     // Changed from yellow (#ffeb3b) to red
 };
 
 // Updated thresholds with descriptions and current value comparisons
@@ -68,13 +68,13 @@ const formatFeatureName = (name) => {
   return formattedName;
 };
 
-const CustomLabel = ({ viewBox, value }) => {
+const CustomLabel = ({ viewBox, value, thresholdValue }) => {
   const { cx, cy } = viewBox;
   return (
     <g>
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
         <tspan x={cx} dy="-1em" fontSize="24" fontWeight="bold">
-          {value} pts
+          {value}/{thresholdValue} pts
         </tspan>
         <tspan x={cx} dy="1.5em" fontSize="14" fill="#666">
           Approval Score
@@ -163,14 +163,40 @@ const renderActiveShape = (props) => {
 };
 
 // Pie chart for showing factors (positive or negative)
-const FactorPieChart = ({ data, title, type, approvalThreshold }) => {
+const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoints }) => {
   const [activeIndex, setActiveIndex] = React.useState(null);
-  const pieColor = type === 'positive' ? '#2ecc71' : '#e74c3c'; // Bright green / Red
+  
+  // Define base colors
+  const baseColor = type === 'positive' ? '#2ecc71' : '#e74c3c'; // Green or Red
+  
+  // Generate color shades based on value proportion
+  const getShade = (value, index, total, isPositive) => {
+    // For positive values: darker green = higher contribution
+    // For negative values: darker red = higher reduction
+    const baseHue = isPositive ? 140 : 0; // Green or Red in HSL
+    const saturation = 80;
+    
+    // Get the max value to normalize
+    const maxValue = Math.max(...data.map(item => item.value));
+    
+    // Normalize value to 0-1 range
+    const normalizedValue = value / maxValue;
+    
+    // Higher values get darker colors (lower lightness)
+    // Scale from 70% (lightest) to 30% (darkest)
+    const lightness = 70 - (normalizedValue * 40);
+    
+    return `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
+  };
   
   // Map belowThreshold to entries for visual indication
-  const enhancedData = data.map(item => ({
+  const enhancedData = data.map((item, index) => ({
     ...item,
-    belowThreshold: item.threshold && !item.meetsThreshold
+    belowThreshold: item.threshold && !item.meetsThreshold,
+    // Convert percentage to point value based on total approval points
+    pointValue: (item.value / 100) * totalApprovalPoints,
+    // Assign color shade based on proportional value
+    fill: getShade(item.value, index, data.length, type === 'positive')
   }));
   
   const onPieEnter = (_, index) => {
@@ -207,7 +233,7 @@ const FactorPieChart = ({ data, title, type, approvalThreshold }) => {
               {enhancedData.map((entry, index) => (
                 <Cell 
                   key={`cell-${index}`} 
-                  fill={entry.fill || pieColor} 
+                  fill={entry.fill} 
                   stroke={entry.belowThreshold ? "#e74c3c" : "none"}
                   strokeWidth={entry.belowThreshold ? 2 : 0}
                 />
@@ -242,7 +268,8 @@ const FactorPieChart = ({ data, title, type, approvalThreshold }) => {
                     <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
                       <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
                       <p className="text-gray-600 mb-1">
-                        Impact: {Math.abs(data.value).toFixed(1)}% of approval chance
+                        Impact: {Math.abs(data.pointValue).toFixed(1)} points
+                        {type === 'positive' ? ' added' : ' reduced'}
                       </p>
                       {data.threshold && (
                         <>
@@ -277,12 +304,12 @@ const FactorPieChart = ({ data, title, type, approvalThreshold }) => {
             <div
               className="w-3 h-3 rounded-full mr-1"
               style={{ 
-                backgroundColor: entry.fill || pieColor,
+                backgroundColor: entry.fill,
                 border: entry.belowThreshold ? '1px solid #e74c3c' : 'none'
               }}
             />
             <span className="text-gray-600">
-              {entry.name}
+              {entry.name} ({Math.abs(entry.pointValue).toFixed(1)} pts)
               {entry.threshold && (
                 <span className={`ml-1 ${entry.meetsThreshold ? 'text-green-600' : 'text-red-600'}`}>
                   {entry.meetsThreshold ? '✓' : '✗'}
@@ -462,7 +489,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
                 />
               ))}
               <Label
-                content={<CustomLabel value={approvalPoints} />}
+                content={<CustomLabel value={approvalPoints} thresholdValue={thresholdPoints} />}
                 position="center"
               />
             </Pie>
@@ -544,19 +571,19 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
           </div>
           {showThresholdGap && (
             <div className="text-center text-sm text-gray-600">
-              <span className="inline-block w-3 h-3 bg-[#ffeb3b] rounded-full mr-1"></span>
+              <span className="inline-block w-3 h-3 bg-[#e74c3c] rounded-full mr-1"></span>
               <span>Points Needed: {(thresholdPoints - approvalPoints).toFixed(0)}</span>
             </div>
           )}
           {showPotentialGain && (
             <div className="text-center text-sm text-gray-600">
-              <span className="inline-block w-3 h-3 bg-[#ffeb3b] rounded-full mr-1" style={{border: '1px solid #e74c3c'}}></span>
+              <span className="inline-block w-3 h-3 bg-[#e74c3c] rounded-full mr-1" style={{border: '1px solid #e74c3c'}}></span>
               <span>Additional Potential: {(potentialApprovalPercentage - thresholdPoints).toFixed(0)} pts</span>
             </div>
           )}
           <div className="text-center text-sm text-gray-600">
             <span className="inline-block w-3 h-3 bg-[#e0e0e0] rounded-full mr-1"></span>
-            <span>Unreachable: {(100-Math.max(potentialApprovalPercentage, isBelowThreshold ? thresholdPoints : approvalPoints)).toFixed(0)} pts</span>
+            <span>Required Points: {(100-Math.max(potentialApprovalPercentage, isBelowThreshold ? thresholdPoints : approvalPoints)).toFixed(0)}</span>
           </div>
         </div>
       </div>
@@ -568,6 +595,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
           title="Factors Adding Points" 
           type="positive"
           approvalThreshold={approvalThreshold}
+          totalApprovalPoints={approvalPoints}
         />
         
         {/* Negative Factors Chart */}
@@ -576,16 +604,17 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
           title="Factors Reducing Points" 
           type="negative"
           approvalThreshold={approvalThreshold}
+          totalApprovalPoints={approvalPoints}
         />
       </div>
       
       <div className="mt-6 text-center text-gray-600 text-sm max-w-2xl mx-auto p-4 bg-gray-50 rounded-lg">
         <p className="mb-2">
-          The main chart shows your current approval score ({approvalPoints} points) compared to the target ({thresholdPoints} points).
+          The main chart shows your current approval score ({approvalPoints}/{thresholdPoints} points).
           {isBelowThreshold ? ` You need ${thresholdPoints - approvalPoints} more points to reach the target.` : ' Congratulations! Your score exceeds the target.'}
         </p>
         <p>
-          The smaller charts break down which factors are adding or reducing points from your score. Factors with red borders need improvement.
+          The smaller charts break down how many points each factor is adding or reducing from your score. Factors with red borders need improvement.
         </p>
       </div>
     </div>
