@@ -2,6 +2,7 @@ from collections import Counter
 import sys
 import pandas as pd
 import numpy as np
+import os
 
 def read_dataset(csv_path):
     """
@@ -9,6 +10,8 @@ def read_dataset(csv_path):
     Returns the DataFrame if successful, or None if there's an error.
     """
     try:
+        # file is in data folder
+        csv_path = os.path.join(os.path.dirname(__file__), 'data', csv_path)
         df = pd.read_csv(csv_path)
         return df
     except Exception as e:
@@ -279,17 +282,35 @@ def check_monthly_debt_ratio(df):
         return
 
     monthly_income = valid_df["annual_income"] / 12.0
-    ratio = valid_df["self_reported_debt"] / monthly_income
+    
+    # Check self-reported debt ratio (should be 10-30% of monthly income)
+    self_reported_ratio = valid_df["self_reported_debt"] / monthly_income
+    self_in_range_mask = self_reported_ratio.between(0.1, 0.3)
+    self_in_range_count = self_in_range_mask.sum()
+    self_total_count = len(self_reported_ratio)
+    self_out_of_range_count = self_total_count - self_in_range_count
+    self_fraction_out = self_out_of_range_count / self_total_count if self_total_count else 0
 
-    # We expect ratio ~0.1–0.3
-    in_range_mask = ratio.between(0.1, 0.3)
-    in_range_count = in_range_mask.sum()
-    total_count = len(ratio)
-    out_of_range_count = total_count - in_range_count
-    fraction_out = out_of_range_count / total_count if total_count else 0
-
-    print(f"[INFO] Monthly debt ratio: {in_range_count}/{total_count} in [10%, 30%], "
-          f"out-of-range fraction={fraction_out:.2%}")
+    print(f"[INFO] Self-reported debt ratio: {self_in_range_count}/{self_total_count} in [10%, 30%], "
+          f"out-of-range fraction={self_fraction_out:.2%}")
+    
+    # Check total monthly debt ratio (including estimated debt)
+    if "estimated_debt" in valid_df.columns:
+        total_monthly_debt = valid_df["self_reported_debt"] + valid_df["estimated_debt"]
+        total_ratio = total_monthly_debt / monthly_income
+        total_in_range_mask = total_ratio.between(0.1, 0.3)
+        total_in_range_count = total_in_range_mask.sum()
+        total_out_of_range_count = len(total_ratio) - total_in_range_count
+        total_fraction_out = total_out_of_range_count / len(total_ratio) if len(total_ratio) > 0 else 0
+        
+        print(f"[INFO] Total monthly debt ratio: {total_in_range_count}/{len(total_ratio)} in [10%, 30%], "
+              f"out-of-range fraction={total_fraction_out:.2%}")
+        
+        # Display distribution statistics
+        print(f"[INFO] Self-reported debt ratio: mean={self_reported_ratio.mean():.2%}, median={self_reported_ratio.median():.2%}")
+        print(f"[INFO] Total debt ratio: mean={total_ratio.mean():.2%}, median={total_ratio.median():.2%}")
+    else:
+        print("[WARNING] Cannot check total debt ratio: 'estimated_debt' column not found.")
 
 def validate_approved_amount(row):
     """
@@ -337,14 +358,14 @@ def validate_approved_amount(row):
     # 2) Compute DTI
     # ------------------------------
     # total monthly debt = self_reported_debt + estimated_debt
-    # DTI = (total_monthly_debt + (requested_amount * 0.03)) / (annual_income / 12)
+    # DTI = (total_monthly_debt + (requested_amount * 0.015)) / (annual_income / 12)
     total_monthly_debt = sr_debt + est_debt
     if income <= 0:
         # If income is 0 or negative, any DTI is effectively infinite
         dti = 9999
     else:
         monthly_income = income / 12.0
-        dti = (total_monthly_debt + (req_amount * 0.03)) / monthly_income * 100.0  # store as percentage if desired
+        dti = (total_monthly_debt + (req_amount * 0.015)) / monthly_income * 100.0  # Reduced from 0.03 to 0.015
 
     # ------------------------------
     # 3) Check if row *should* be approved or denied, per the rules
