@@ -1,18 +1,21 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Label, Sector } from 'recharts';
 
+// Updated colorblind-friendly palette
+// Using a palette designed for all types of color blindness
+// Blue, orange, purple, teal, gold, etc. with good contrast
 const COLORS = {
-  'credit_score': '#4ECDC4',
-  'DTI': '#45B7D1',
-  'payment_history': '#96CEB4',
-  'estimated_debt': '#FFEEAD',
-  'months_employed': '#FF6B6B',
-  'others': '#D4D4D4',
-  'empty': '#e0e0e0',        // Light grey for empty space
-  'potential': '#e74c3c',    // Changed from yellow (#ffeb3b) to red
-  'approval': '#2ecc71',     // Bright green for approval
-  'rejection': '#e0e0e0',    // Light grey for rejection
-  'threshold': '#e74c3c'     // Changed from yellow (#ffeb3b) to red
+  'credit_score': '#3498db',       // Blue
+  'DTI': '#9b59b6',               // Purple
+  'payment_history': '#1abc9c',    // Teal
+  'estimated_debt': '#f39c12',     // Orange/Gold
+  'months_employed': '#e67e22',    // Dark Orange
+  'others': '#95a5a6',             // Gray
+  'empty': '#ecf0f1',              // Light Gray
+  'potential': '#c0392b',          // Dark Red
+  'approval': '#27ae60',           // Dark Green
+  'rejection': '#ecf0f1',          // Light Gray
+  'threshold': '#d35400'           // Burnt Orange
 };
 
 // Updated thresholds with descriptions and current value comparisons
@@ -166,27 +169,27 @@ const renderActiveShape = (props) => {
 const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoints }) => {
   const [activeIndex, setActiveIndex] = React.useState(null);
   
-  // Define base colors
-  const baseColor = type === 'positive' ? '#2ecc71' : '#e74c3c'; // Green or Red
-  
-  // Generate color shades based on value proportion
-  const getShade = (value, index, total, isPositive) => {
-    // For positive values: darker green = higher contribution
-    // For negative values: darker red = higher reduction
-    const baseHue = isPositive ? 140 : 0; // Green or Red in HSL
-    const saturation = 80;
+  // Define colorblind-friendly color schemes
+  const getAccessibleColor = (index, isPositive) => {
+    // Colorblind-friendly palettes
+    const positiveColors = [
+      '#27ae60', // Dark Green
+      '#2ecc71', // Green
+      '#16a085', // Teal Green
+      '#1abc9c', // Teal
+      '#2980b9', // Blue
+    ];
     
-    // Get the max value to normalize
-    const maxValue = Math.max(...data.map(item => item.value));
+    const negativeColors = [
+      '#c0392b', // Dark Red
+      '#e74c3c', // Red
+      '#d35400', // Burnt Orange
+      '#e67e22', // Orange
+      '#f39c12', // Gold
+    ];
     
-    // Normalize value to 0-1 range
-    const normalizedValue = value / maxValue;
-    
-    // Higher values get darker colors (lower lightness)
-    // Scale from 70% (lightest) to 30% (darkest)
-    const lightness = 70 - (normalizedValue * 40);
-    
-    return `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
+    const palette = isPositive ? positiveColors : negativeColors;
+    return palette[index % palette.length];
   };
   
   // Map belowThreshold to entries for visual indication
@@ -195,8 +198,8 @@ const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoi
     belowThreshold: item.threshold && !item.meetsThreshold,
     // Convert percentage to point value based on total approval points
     pointValue: (item.value / 100) * totalApprovalPoints,
-    // Assign color shade based on proportional value
-    fill: getShade(item.value, index, data.length, type === 'positive')
+    // Assign color from our accessible palette
+    fill: getAccessibleColor(index, type === 'positive')
   }));
   
   const onPieEnter = (_, index) => {
@@ -234,7 +237,7 @@ const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoi
                 <Cell 
                   key={`cell-${index}`} 
                   fill={entry.fill} 
-                  stroke={entry.belowThreshold ? "#e74c3c" : "none"}
+                  stroke={entry.belowThreshold ? "#c0392b" : "none"}
                   strokeWidth={entry.belowThreshold ? 2 : 0}
                 />
               ))}
@@ -255,7 +258,7 @@ const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoi
                   angle={middleAngle}
                   text={`Target: ${entry.threshold.format(entry.threshold.target)}`}
                   isThreshold={true}
-                  color="#e74c3c"
+                  color="#c0392b"
                 />
               );
             })}
@@ -305,7 +308,7 @@ const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoi
               className="w-3 h-3 rounded-full mr-1"
               style={{ 
                 backgroundColor: entry.fill,
-                border: entry.belowThreshold ? '1px solid #e74c3c' : 'none'
+                border: entry.belowThreshold ? '1px solid #c0392b' : 'none'
               }}
             />
             <span className="text-gray-600">
@@ -389,7 +392,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
     }
   ];
   
-  // Add threshold gap if needed (red)
+  // Add threshold gap if needed (orange)
   if (showThresholdGap) {
     mainChartData.push({
       name: 'Threshold Gap',
@@ -467,7 +470,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
                 <Cell 
                   key={`cell-${index}`} 
                   fill={entry.fill} 
-                  stroke={entry.hasBorder ? "#e74c3c" : "none"}
+                  stroke={entry.hasBorder ? "#c0392b" : "none"}
                   strokeWidth={entry.hasBorder ? 2 : 0}
                 />
               ))}
@@ -485,7 +488,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
               angle={thresholdAngle} 
               text={`Target: 100 pts`}
               isThreshold={true}
-              color="#e74c3c"
+              color="#c0392b"
             />
             
             {/* "You are here" marker */}
@@ -535,12 +538,12 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
         </ResponsiveContainer>
         <div className="flex justify-center mt-2 space-x-4">
           <div className="text-center text-sm text-gray-600">
-            <span className="inline-block w-3 h-3 bg-[#2ecc71] rounded-full mr-1"></span>
+            <span className="inline-block w-3 h-3 bg-[#27ae60] rounded-full mr-1"></span>
             <span>Current: {normalizedPoints} pts</span>
           </div>
           {showThresholdGap && (
             <div className="text-center text-sm text-gray-600">
-              <span className="inline-block w-3 h-3 bg-[#e74c3c] rounded-full mr-1"></span>
+              <span className="inline-block w-3 h-3 bg-[#d35400] rounded-full mr-1"></span>
               <span>Points Needed: {(100 - normalizedPoints).toFixed(0)}</span>
             </div>
           )}
