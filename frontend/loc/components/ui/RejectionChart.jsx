@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Label } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Label, Sector } from 'recharts';
 
 const COLORS = {
   'credit_score': '#4ECDC4',
@@ -8,7 +8,11 @@ const COLORS = {
   'estimated_debt': '#FFEEAD',
   'months_employed': '#FF6B6B',
   'others': '#D4D4D4',
-  'empty': '#f5f5f5'  // Light gray for empty space
+  'empty': '#e0e0e0',        // Light grey for empty space
+  'potential': '#ffeb3b',    // Yellow for potential gain (was orange/amber)
+  'approval': '#2ecc71',     // Bright green for approval
+  'rejection': '#e0e0e0',    // Light grey for rejection
+  'threshold': '#ffeb3b'     // Yellow for threshold gap
 };
 
 // Updated thresholds with descriptions and current value comparisons
@@ -70,196 +74,217 @@ const CustomLabel = ({ viewBox, value }) => {
     <g>
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
         <tspan x={cx} dy="-1em" fontSize="24" fontWeight="bold">
-          {value}%
+          {value} pts
         </tspan>
         <tspan x={cx} dy="1.5em" fontSize="14" fill="#666">
-          Approval Chance
+          Approval Score
         </tspan>
       </text>
     </g>
   );
 };
 
-const ApprovalChart = ({ featureImportance, baseValue, approvalProbability }) => {
-  if (!featureImportance || !approvalProbability) return null;
-
-  const approvalPercentage = Math.round(approvalProbability * 100);
+// Arrow showing threshold or current position
+const ArrowMarker = ({ cx, cy, outerRadius, angle, text, isThreshold, color = "#333" }) => {
+  // Convert angle from degrees to radians
+  const radian = (angle * Math.PI) / 180;
   
-  // Since the backend is already providing SHAP values reversed for approval
-  // Positive values in featureImportance now mean they contribute to approval
-  // Negative values in featureImportance now mean they hurt approval
+  // Calculate position - slightly outside the pie
+  const x = cx + (outerRadius + 15) * Math.cos(radian);
+  const y = cy + (outerRadius + 15) * Math.sin(radian);
   
-  // 1. Calculate total SHAP impact from all features (sum of absolute values)
-  const allFeatures = Object.entries(featureImportance);
-  const totalAbsImpact = allFeatures.reduce((sum, [, value]) => sum + Math.abs(value), 0);
+  // Calculate arrow points
+  const arrowSize = 8;
+  const arrowX = cx + (outerRadius + 5) * Math.cos(radian);
+  const arrowY = cy + (outerRadius + 5) * Math.sin(radian);
   
-  // 2. Get the top 5 features by absolute impact
-  const top5Features = [...allFeatures]
-    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
-    .slice(0, 5);
-    
-  // 3. Calculate "Others" as the sum of remaining features
-  const otherFeatures = allFeatures
-    .filter(([feature]) => !top5Features.some(([topFeature]) => topFeature === feature))
-    .reduce((sum, [, value]) => sum + Math.abs(value), 0);
-  
-  // 4. Calculate the empty portion representing the remaining risk
-  const emptyPortion = 100 - approvalPercentage;
-  
-  // Prepare data for the chart - we'll show the full 100% gauge
-  const data = [
-    // First add the filled portion (approval chance)
-    ...top5Features.map(([feature, value]) => {
-      const baseFeature = getBaseFeature(feature);
-      const contribution = (Math.abs(value) / totalAbsImpact) * approvalPercentage;
+  return (
+    <g>
+      {/* Line */}
+      <line
+        x1={arrowX}
+        y1={arrowY}
+        x2={x}
+        y2={y}
+        stroke={color}
+        strokeWidth={2}
+      />
       
-      return {
-        name: formatFeatureName(feature),
-        value: contribution,
-        rawShap: value,
-        fill: COLORS[baseFeature] || COLORS.others,
-        threshold: THRESHOLDS[baseFeature],
-        // Since backend has already reversed values, positive now helps approval
-        isPositive: value > 0,
-        featureKey: feature
-      };
-    }),
-    
-    // Add "Others" category if it has a significant contribution
-    otherFeatures > 0 ? {
-      name: 'Others',
-      value: (otherFeatures / totalAbsImpact) * approvalPercentage,
-      fill: COLORS.others,
-      isOthers: true
-    } : null,
-    
-    // Add empty portion representing rejection chance
-    {
-      name: 'Remaining Risk',
-      value: emptyPortion,
-      fill: COLORS.empty,
-      isEmpty: true
-    }
-  ].filter(Boolean); // Remove null items
+      {/* Arrow head */}
+      <polygon
+        points={`${arrowX},${arrowY} ${arrowX + arrowSize * Math.cos(radian - Math.PI/6)},${arrowY + arrowSize * Math.sin(radian - Math.PI/6)} ${arrowX + arrowSize * Math.cos(radian + Math.PI/6)},${arrowY + arrowSize * Math.sin(radian + Math.PI/6)}`}
+        fill={color}
+      />
+      
+      {/* Text */}
+      <text
+        x={x + 10 * Math.cos(radian)}
+        y={y + 10 * Math.sin(radian)}
+        fill={color}
+        textAnchor={angle > 90 && angle < 270 ? "end" : "start"}
+        dominantBaseline="middle"
+        fontSize={12}
+        fontWeight={isThreshold ? "normal" : "bold"}
+      >
+        {text}
+      </text>
+    </g>
+  );
+};
+
+// Custom Active Shape component for highlighting sectors
+const renderActiveShape = (props) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   
-  // Calculate actual values for features from the data for tooltips
-  const getActualValue = (feature) => {
-    // For payment history features
-    if (feature.includes('payment_history_')) {
-      if (feature.includes('On Time')) return 1;
-      if (feature.includes('Late<30')) return 0.7;
-      if (feature.includes('Late>60')) return 0.3;
-      return 0.5;
-    }
-    
-    // For normal features, try to extract from the feature name
-    const match = feature.match(/(\d+(\.\d+)?)/);
-    return match ? parseFloat(match[1]) : null;
+  return (
+    <g>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 6}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        stroke="#333"
+        strokeWidth={2}
+      />
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+    </g>
+  );
+};
+
+// Pie chart for showing factors (positive or negative)
+const FactorPieChart = ({ data, title, type, approvalThreshold }) => {
+  const [activeIndex, setActiveIndex] = React.useState(null);
+  const pieColor = type === 'positive' ? '#2ecc71' : '#e74c3c'; // Bright green / Red
+  
+  // Map belowThreshold to entries for visual indication
+  const enhancedData = data.map(item => ({
+    ...item,
+    belowThreshold: item.threshold && !item.meetsThreshold
+  }));
+  
+  const onPieEnter = (_, index) => {
+    setActiveIndex(index);
   };
   
-  // Add actual values and threshold checks
-  data.forEach(item => {
-    if (item.featureKey && item.threshold) {
-      const actualValue = getActualValue(item.featureKey);
-      if (actualValue !== null) {
-        item.actualValue = actualValue;
-        item.meetsThreshold = item.threshold.compare(actualValue, item.threshold.target);
-      }
-    }
-  });
-
+  const onPieLeave = () => {
+    setActiveIndex(null);
+  };
+  
   return (
-    <div className="w-full h-[400px] mt-6">
-      <h3 className="text-xl font-semibold mb-4 text-center text-gray-800">
-        Approval Chance Distribution
-      </h3>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={80}
-            outerRadius={120}
-            startAngle={180}
-            endAngle={0}
-            paddingAngle={2}
-            dataKey="value"
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.fill} />
-            ))}
-            <Label
-              content={<CustomLabel value={approvalPercentage} />}
-              position="center"
-            />
-          </Pie>
-          <Tooltip
-            content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                const data = payload[0].payload;
-                if (data.isEmpty) return null;
-                
-                if (data.isOthers) {
+    <div className="w-full mb-6">
+      <h4 className="text-lg font-semibold mb-2 text-center">
+        {title}
+      </h4>
+      <div style={{ height: 220 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={enhancedData}
+              cx="50%"
+              cy="50%"
+              innerRadius={40}
+              outerRadius={80}
+              paddingAngle={2}
+              dataKey="value"
+              startAngle={90}
+              endAngle={-270}
+              activeIndex={activeIndex}
+              activeShape={renderActiveShape}
+              onMouseEnter={onPieEnter}
+              onMouseLeave={onPieLeave}
+            >
+              {enhancedData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.fill || pieColor} 
+                  stroke={entry.belowThreshold ? "#e74c3c" : "none"}
+                  strokeWidth={entry.belowThreshold ? 2 : 0}
+                />
+              ))}
+            </Pie>
+            
+            {/* Render threshold arrows for entries with thresholds */}
+            {enhancedData.filter(entry => entry.threshold && !entry.meetsThreshold).map((entry, index) => {
+              const idx = enhancedData.findIndex(e => e.name === entry.name);
+              const sumBefore = enhancedData.slice(0, idx).reduce((sum, item) => sum + item.value, 0);
+              const middleAngle = 90 - ((sumBefore + entry.value / 2) / 100) * 360;
+              
+              return (
+                <ArrowMarker 
+                  key={`threshold-${index}`}
+                  cx="50%" 
+                  cy="50%"
+                  outerRadius={85} 
+                  angle={middleAngle}
+                  text={`Target: ${entry.threshold.format(entry.threshold.target)}`}
+                  isThreshold={true}
+                  color="#e74c3c"
+                />
+              );
+            })}
+            
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
                   return (
                     <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
                       <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
-                      <p className="text-gray-600">
-                        Contribution: {data.value.toFixed(1)}% of approval chance
+                      <p className="text-gray-600 mb-1">
+                        Impact: {Math.abs(data.value).toFixed(1)}% of approval chance
                       </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Combined impact of remaining factors
-                      </p>
+                      {data.threshold && (
+                        <>
+                          <p className="text-gray-600 mb-1">
+                            Target: {data.threshold.format(data.threshold.target)}
+                          </p>
+                          {data.actualValue !== undefined && (
+                            <p className={`text-sm ${data.meetsThreshold ? 'text-green-600' : 'text-red-600'}`}>
+                              Current: {data.threshold.format(data.actualValue)}
+                              <span className="ml-2">
+                                {data.meetsThreshold ? '✓' : '✗'}
+                              </span>
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-2">
+                            {data.threshold.description}
+                          </p>
+                        </>
+                      )}
                     </div>
                   );
                 }
-                
-                return (
-                  <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
-                    <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
-                    <p className="text-gray-600 mb-1">
-                      Contribution: {data.value.toFixed(1)}% of approval chance
-                      <span className={data.isPositive ? "text-green-600 ml-1" : "text-red-600 ml-1"}>
-                        {data.isPositive ? "(Helps)" : "(Hurts)"}
-                      </span>
-                    </p>
-                    {data.threshold && (
-                      <>
-                        <p className="text-gray-600 mb-1">
-                          Target: {data.threshold.format(data.threshold.target)}
-                        </p>
-                        {data.actualValue !== undefined && (
-                          <p className={`text-sm ${data.meetsThreshold ? 'text-green-600' : 'text-red-600'}`}>
-                            Current: {data.threshold.format(data.actualValue)}
-                            <span className="ml-2">
-                              {data.meetsThreshold ? '✓' : '✗'}
-                            </span>
-                          </p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-2">
-                          {data.threshold.description}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
-        </PieChart>
-      </ResponsiveContainer>
-      <div className="flex flex-wrap justify-center gap-4 mt-4">
-        {data.filter(entry => !entry.isEmpty).map((entry, index) => (
-          <div key={index} className="flex items-center">
-            <div
-              className="w-3 h-3 rounded-full mr-2"
-              style={{ backgroundColor: entry.fill }}
+                return null;
+              }}
             />
-            <span className="text-sm text-gray-600">
-              {entry.name} ({entry.value.toFixed(1)}%)
-              {!entry.isOthers && entry.threshold && (
-                <span className={`ml-1 text-xs ${entry.meetsThreshold ? 'text-green-600' : 'text-red-600'}`}>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap justify-center gap-2 mt-2">
+        {enhancedData.slice(0, 5).map((entry, index) => (
+          <div key={index} className="flex items-center text-xs">
+            <div
+              className="w-3 h-3 rounded-full mr-1"
+              style={{ 
+                backgroundColor: entry.fill || pieColor,
+                border: entry.belowThreshold ? '1px solid #e74c3c' : 'none'
+              }}
+            />
+            <span className="text-gray-600">
+              {entry.name}
+              {entry.threshold && (
+                <span className={`ml-1 ${entry.meetsThreshold ? 'text-green-600' : 'text-red-600'}`}>
                   {entry.meetsThreshold ? '✓' : '✗'}
                 </span>
               )}
@@ -267,12 +292,300 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability }) =>
           </div>
         ))}
       </div>
-      <div className="mt-4 text-center text-gray-600 text-sm max-w-2xl mx-auto">
+    </div>
+  );
+};
+
+const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, approvalThreshold = 0.5 }) => {
+  if (!featureImportance || !approvalProbability) return null;
+
+  // Convert percentages to points (removing % symbol)
+  const approvalPoints = Math.round(approvalProbability * 100);
+  const thresholdPoints = Math.round(approvalThreshold * 100);
+  const isBelowThreshold = approvalProbability < approvalThreshold;
+  
+  // Get all features with their SHAP values
+  const allFeatures = Object.entries(featureImportance);
+  
+  // Calculate total absolute impact for scaling
+  const totalAbsImpact = allFeatures.reduce((sum, [, value]) => sum + Math.abs(value), 0);
+  
+  // Split into positive and negative features
+  const positiveFeatures = allFeatures
+    .filter(([, value]) => value > 0)
+    .map(([feature, value]) => {
+      const baseFeature = getBaseFeature(feature);
+      return {
+        name: formatFeatureName(feature),
+        value: (value / totalAbsImpact) * 100,
+        rawValue: value,
+        fill: COLORS[baseFeature] || COLORS.others,
+        featureKey: feature
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+  
+  const negativeFeatures = allFeatures
+    .filter(([, value]) => value < 0)
+    .map(([feature, value]) => {
+      const baseFeature = getBaseFeature(feature);
+      return {
+        name: formatFeatureName(feature),
+        value: Math.abs(value / totalAbsImpact) * 100, // Use absolute value for display
+        rawValue: value,
+        fill: COLORS[baseFeature] || COLORS.others,
+        featureKey: feature
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  // Calculate potential approval chance without negative factors
+  const negativeImpact = negativeFeatures.reduce((sum, item) => sum + item.value, 0);
+  const potentialApprovalPercentage = Math.min(100, approvalPoints + negativeImpact);
+  
+  // Calculate if we need to show threshold gap and potential gain segments
+  const showThresholdGap = isBelowThreshold && thresholdPoints > approvalPoints;
+  const showPotentialGain = potentialApprovalPercentage > thresholdPoints && showThresholdGap;
+  
+  // Prepare main chart data segments
+  const mainChartData = [
+    // Current approval (green)
+    {
+      name: 'Current Approval',
+      value: approvalPoints,
+      fill: COLORS.approval,
+      isApproval: true,
+      noBorder: true // No border
+    }
+  ];
+  
+  // Add threshold gap if needed (yellow, no border)
+  if (showThresholdGap) {
+    mainChartData.push({
+      name: 'Threshold Gap',
+      value: thresholdPoints - approvalPoints,
+      fill: COLORS.threshold,
+      isThresholdGap: true,
+      noBorder: true // No border
+    });
+  }
+  
+  // Add potential gain beyond threshold if applicable (yellow with red border)
+  if (showPotentialGain) {
+    mainChartData.push({
+      name: 'Potential Gain',
+      value: potentialApprovalPercentage - thresholdPoints,
+      fill: COLORS.potential,
+      isPotential: true,
+      hasBorder: true // Red border
+    });
+  }
+  
+  // Add rejection risk (grey)
+  mainChartData.push({
+    name: 'Rejection Risk',
+    value: 100 - Math.max(potentialApprovalPercentage, showThresholdGap ? thresholdPoints : approvalPoints),
+    fill: COLORS.rejection,
+    isEmpty: true,
+    noBorder: true // No border
+  });
+  
+  // Add target thresholds to all chart data
+  const addThresholds = (data) => {
+    return data.map(item => {
+      if (item.featureKey) {
+        const baseFeature = getBaseFeature(item.featureKey);
+        const threshold = THRESHOLDS[baseFeature];
+        
+        if (threshold) {
+          // Get current value 
+          let actualValue = null;
+          if (item.featureKey.includes('payment_history_')) {
+            actualValue = item.featureKey.includes('On Time') ? 1 : 
+                          item.featureKey.includes('Late<30') ? 0.7 : 0.3;
+          } else {
+            const match = item.featureKey.match(/(\d+(\.\d+)?)/);
+            if (match) actualValue = parseFloat(match[1]);
+          }
+          
+          if (actualValue !== null) {
+            return {
+              ...item,
+              threshold,
+              actualValue,
+              meetsThreshold: threshold.compare(actualValue, threshold.target)
+            };
+          }
+        }
+      }
+      return item;
+    });
+  };
+  
+  // Add thresholds to datasets
+  const positiveDataWithThresholds = addThresholds(positiveFeatures);
+  const negativeDataWithThresholds = addThresholds(negativeFeatures);
+
+  // Calculate angle for threshold arrow
+  const thresholdAngle = 180 - (thresholdPoints * 180) / 100;
+  
+  // Calculate angle for "You are here" arrow
+  const youAreHereAngle = 180 - (approvalPoints * 180) / 100;
+
+  return (
+    <div className="w-full mt-6">
+      <h3 className="text-xl font-semibold mb-4 text-center text-gray-800">
+        Approval Score Analysis
+      </h3>
+      
+      {/* Main Approval Chart - Simplified */}
+      <div className="w-full h-[300px] mb-8">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={mainChartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={80}
+              outerRadius={120}
+              startAngle={180}
+              endAngle={0}
+              paddingAngle={1}
+              dataKey="value"
+            >
+              {mainChartData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.fill} 
+                  stroke={entry.hasBorder ? "#e74c3c" : "none"}
+                  strokeWidth={entry.hasBorder ? 2 : 0}
+                />
+              ))}
+              <Label
+                content={<CustomLabel value={approvalPoints} />}
+                position="center"
+              />
+            </Pie>
+            
+            {/* Threshold arrow marker - updated text */}
+            <ArrowMarker 
+              cx="50%" 
+              cy="50%" 
+              outerRadius={125} 
+              angle={thresholdAngle} 
+              text={`Target: ${thresholdPoints} pts`}
+              isThreshold={true}
+              color="#e74c3c"
+            />
+            
+            {/* "You are here" marker */}
+            <ArrowMarker 
+              cx="50%" 
+              cy="50%" 
+              outerRadius={125} 
+              angle={youAreHereAngle} 
+              text="You are here"
+              isThreshold={false}
+              color="#333"
+            />
+            
+            <Tooltip
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  if (data.isEmpty) return null;
+                  
+                  if (data.isPotential) {
+                    return (
+                      <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
+                        <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
+                        <p className="text-gray-600">
+                          Additional: +{data.value.toFixed(1)} potential points
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Extra points possible by improving all factors
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  if (data.isThresholdGap) {
+                    return (
+                      <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
+                        <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
+                        <p className="text-gray-600">
+                          {data.value.toFixed(1)} points needed to reach target
+                        </p>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Points needed to reach the minimum approval threshold
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
+                      <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
+                      <p className="text-gray-600">
+                        {data.value.toFixed(1)} points
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="flex justify-center mt-2 space-x-4">
+          <div className="text-center text-sm text-gray-600">
+            <span className="inline-block w-3 h-3 bg-[#2ecc71] rounded-full mr-1"></span>
+            <span>Current: {approvalPoints} pts</span>
+          </div>
+          {showThresholdGap && (
+            <div className="text-center text-sm text-gray-600">
+              <span className="inline-block w-3 h-3 bg-[#ffeb3b] rounded-full mr-1"></span>
+              <span>Points Needed: {(thresholdPoints - approvalPoints).toFixed(0)}</span>
+            </div>
+          )}
+          {showPotentialGain && (
+            <div className="text-center text-sm text-gray-600">
+              <span className="inline-block w-3 h-3 bg-[#ffeb3b] rounded-full mr-1" style={{border: '1px solid #e74c3c'}}></span>
+              <span>Additional Potential: {(potentialApprovalPercentage - thresholdPoints).toFixed(0)} pts</span>
+            </div>
+          )}
+          <div className="text-center text-sm text-gray-600">
+            <span className="inline-block w-3 h-3 bg-[#e0e0e0] rounded-full mr-1"></span>
+            <span>Unreachable: {(100-Math.max(potentialApprovalPercentage, isBelowThreshold ? thresholdPoints : approvalPoints)).toFixed(0)} pts</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        {/* Positive Factors Chart */}
+        <FactorPieChart 
+          data={positiveDataWithThresholds.slice(0, 5)} 
+          title="Factors Adding Points" 
+          type="positive"
+          approvalThreshold={approvalThreshold}
+        />
+        
+        {/* Negative Factors Chart */}
+        <FactorPieChart 
+          data={negativeDataWithThresholds.slice(0, 5)} 
+          title="Factors Reducing Points" 
+          type="negative"
+          approvalThreshold={approvalThreshold}
+        />
+      </div>
+      
+      <div className="mt-6 text-center text-gray-600 text-sm max-w-2xl mx-auto p-4 bg-gray-50 rounded-lg">
         <p className="mb-2">
-          The chart shows your overall approval chance ({approvalPercentage}%) and how different factors contribute to it.
+          The main chart shows your current approval score ({approvalPoints} points) compared to the target ({thresholdPoints} points).
+          {isBelowThreshold ? ` You need ${thresholdPoints - approvalPoints} more points to reach the target.` : ' Congratulations! Your score exceeds the target.'}
         </p>
         <p>
-          ✓ indicates meeting target thresholds, while ✗ shows areas needing improvement to increase approval chances.
+          The smaller charts break down which factors are adding or reducing points from your score. Factors with red borders need improvement.
         </p>
       </div>
     </div>
