@@ -74,7 +74,7 @@ const CustomLabel = ({ viewBox, value, thresholdValue }) => {
     <g>
       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
         <tspan x={cx} dy="-1em" fontSize="24" fontWeight="bold">
-          {value}/{thresholdValue} pts
+          {value} pts
         </tspan>
         <tspan x={cx} dy="1.5em" fontSize="14" fill="#666">
           Approval Score
@@ -326,9 +326,13 @@ const FactorPieChart = ({ data, title, type, approvalThreshold, totalApprovalPoi
 const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, approvalThreshold = 0.5 }) => {
   if (!featureImportance || !approvalProbability) return null;
 
-  // Convert percentages to points (removing % symbol)
-  const approvalPoints = Math.round(approvalProbability * 100);
+  // Map the threshold-based system to 0-100 scale
   const thresholdPoints = Math.round(approvalThreshold * 100);
+  const approvalRatio = approvalProbability / approvalThreshold; // How close to threshold (1.0 = at threshold)
+  
+  // Calculate normalized points (0-100 scale)
+  // If approvalRatio is 1.0 (at threshold), normalizedPoints will be 100
+  const normalizedPoints = Math.min(100, Math.round(approvalRatio * 100));
   const isBelowThreshold = approvalProbability < approvalThreshold;
   
   // Get all features with their SHAP values
@@ -344,8 +348,10 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
       const baseFeature = getBaseFeature(feature);
       return {
         name: formatFeatureName(feature),
-        value: (value / totalAbsImpact) * 100,
+        value: (value / totalAbsImpact) * 100, // Keep percentages for chart segments
         rawValue: value,
+        // Scale point value to 0-100 scale
+        pointValue: (value / totalAbsImpact) * normalizedPoints,
         fill: COLORS[baseFeature] || COLORS.others,
         featureKey: feature
       };
@@ -358,54 +364,43 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
       const baseFeature = getBaseFeature(feature);
       return {
         name: formatFeatureName(feature),
-        value: Math.abs(value / totalAbsImpact) * 100, // Use absolute value for display
+        value: Math.abs(value / totalAbsImpact) * 100, // Keep percentages for chart segments
         rawValue: value,
+        // Scale point value to 0-100 scale
+        pointValue: Math.abs(value / totalAbsImpact) * normalizedPoints,
         fill: COLORS[baseFeature] || COLORS.others,
         featureKey: feature
       };
     })
     .sort((a, b) => b.value - a.value);
 
-  // Calculate potential approval chance without negative factors
-  const negativeImpact = negativeFeatures.reduce((sum, item) => sum + item.value, 0);
-  const potentialApprovalPercentage = Math.min(100, approvalPoints + negativeImpact);
+  // Calculate if we need to show threshold gap
+  const showThresholdGap = isBelowThreshold;
   
-  // Calculate if we need to show threshold gap segment
-  const showThresholdGap = isBelowThreshold && thresholdPoints > approvalPoints;
-  
-  // Prepare main chart data segments
+  // Prepare main chart data segments - using 0-100 scale
   const mainChartData = [
     // Current approval (green)
     {
       name: 'Current Approval',
-      value: approvalPoints,
+      value: normalizedPoints,
       fill: COLORS.approval,
       isApproval: true,
-      noBorder: true // No border
+      noBorder: true
     }
   ];
   
-  // Add threshold gap if needed (yellow, no border)
+  // Add threshold gap if needed (red)
   if (showThresholdGap) {
     mainChartData.push({
       name: 'Threshold Gap',
-      value: thresholdPoints - approvalPoints,
+      value: 100 - normalizedPoints,
       fill: COLORS.threshold,
       isThresholdGap: true,
-      noBorder: true // No border
+      noBorder: true
     });
   }
   
-  // Add rejection risk (grey)
-  mainChartData.push({
-    name: 'Rejection Risk',
-    value: 100 - (showThresholdGap ? thresholdPoints : approvalPoints),
-    fill: COLORS.rejection,
-    isEmpty: true,
-    noBorder: true // No border
-  });
-  
-  // Add target thresholds to all chart data
+  // Add target thresholds to chart data
   const addThresholds = (data) => {
     return data.map(item => {
       if (item.featureKey) {
@@ -441,11 +436,11 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
   const positiveDataWithThresholds = addThresholds(positiveFeatures);
   const negativeDataWithThresholds = addThresholds(negativeFeatures);
 
-  // Calculate angle for threshold arrow
-  const thresholdAngle = 180 - (thresholdPoints * 180) / 100;
+  // Calculate angle for threshold arrow (180 = left side, 0 = right side)
+  const thresholdAngle = 0; // Always at the right (100 points)
   
-  // Calculate angle for "You are here" arrow
-  const youAreHereAngle = 180 - (approvalPoints * 180) / 100;
+  // Calculate angle for "You are here" arrow (scale based on 0-100)
+  const youAreHereAngle = 180 - (normalizedPoints * 180) / 100;
 
   return (
     <div className="w-full mt-6">
@@ -453,7 +448,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
         Approval Score Analysis
       </h3>
       
-      {/* Main Approval Chart - Simplified */}
+      {/* Main Approval Chart - Using 0-100 scale */}
       <div className="w-full h-[300px] mb-8">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -477,18 +472,18 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
                 />
               ))}
               <Label
-                content={<CustomLabel value={approvalPoints} thresholdValue={thresholdPoints} />}
+                content={<CustomLabel value={normalizedPoints} />}
                 position="center"
               />
             </Pie>
             
-            {/* Threshold arrow marker - updated text */}
+            {/* Threshold arrow marker - updated text for 100-point scale */}
             <ArrowMarker 
               cx="50%" 
               cy="50%" 
               outerRadius={125} 
               angle={thresholdAngle} 
-              text={`Target: ${thresholdPoints} pts`}
+              text={`Target: 100 pts`}
               isThreshold={true}
               color="#e74c3c"
             />
@@ -541,18 +536,14 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
         <div className="flex justify-center mt-2 space-x-4">
           <div className="text-center text-sm text-gray-600">
             <span className="inline-block w-3 h-3 bg-[#2ecc71] rounded-full mr-1"></span>
-            <span>Current: {approvalPoints} pts</span>
+            <span>Current: {normalizedPoints} pts</span>
           </div>
           {showThresholdGap && (
             <div className="text-center text-sm text-gray-600">
               <span className="inline-block w-3 h-3 bg-[#e74c3c] rounded-full mr-1"></span>
-              <span>Points Needed: {(thresholdPoints - approvalPoints).toFixed(0)}</span>
+              <span>Points Needed: {(100 - normalizedPoints).toFixed(0)}</span>
             </div>
           )}
-          <div className="text-center text-sm text-gray-600">
-            <span className="inline-block w-3 h-3 bg-[#e0e0e0] rounded-full mr-1"></span>
-            <span>Required Points: {thresholdPoints}</span>
-          </div>
         </div>
       </div>
       
@@ -563,7 +554,7 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
           title="Factors Adding Points" 
           type="positive"
           approvalThreshold={approvalThreshold}
-          totalApprovalPoints={approvalPoints}
+          totalApprovalPoints={normalizedPoints}
         />
         
         {/* Negative Factors Chart */}
@@ -572,14 +563,14 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
           title="Factors Reducing Points" 
           type="negative"
           approvalThreshold={approvalThreshold}
-          totalApprovalPoints={approvalPoints}
+          totalApprovalPoints={normalizedPoints}
         />
       </div>
       
       <div className="mt-6 text-center text-gray-600 text-sm max-w-2xl mx-auto p-4 bg-gray-50 rounded-lg">
         <p className="mb-2">
-          The main chart shows your current approval score ({approvalPoints}/{thresholdPoints} points).
-          {isBelowThreshold ? ` You need ${thresholdPoints - approvalPoints} more points to reach the target.` : ' Congratulations! Your score exceeds the target.'}
+          The main chart shows your current approval score ({normalizedPoints} points).
+          {isBelowThreshold ? ` You need ${(100 - normalizedPoints).toFixed(0)} more points to reach the target of 100.` : ' Congratulations! Your score exceeds the minimum target.'}
         </p>
         <p>
           The smaller charts break down how many points each factor is adding or reducing from your score. Factors with red borders need improvement.

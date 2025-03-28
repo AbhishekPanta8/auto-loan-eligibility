@@ -503,7 +503,7 @@ export function LineOfCreditForm() {
             });
             
             setErrorMessage(errorMessages.join("\n"));
-          } else {
+        } else {
             setErrorMessage("Validation error: Please check your input data.");
           }
         } else {
