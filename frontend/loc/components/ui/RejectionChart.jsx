@@ -370,9 +370,8 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
   const negativeImpact = negativeFeatures.reduce((sum, item) => sum + item.value, 0);
   const potentialApprovalPercentage = Math.min(100, approvalPoints + negativeImpact);
   
-  // Calculate if we need to show threshold gap and potential gain segments
+  // Calculate if we need to show threshold gap segment
   const showThresholdGap = isBelowThreshold && thresholdPoints > approvalPoints;
-  const showPotentialGain = potentialApprovalPercentage > thresholdPoints && showThresholdGap;
   
   // Prepare main chart data segments
   const mainChartData = [
@@ -397,21 +396,10 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
     });
   }
   
-  // Add potential gain beyond threshold if applicable (yellow with red border)
-  if (showPotentialGain) {
-    mainChartData.push({
-      name: 'Potential Gain',
-      value: potentialApprovalPercentage - thresholdPoints,
-      fill: COLORS.potential,
-      isPotential: true,
-      hasBorder: true // Red border
-    });
-  }
-  
   // Add rejection risk (grey)
   mainChartData.push({
     name: 'Rejection Risk',
-    value: 100 - Math.max(potentialApprovalPercentage, showThresholdGap ? thresholdPoints : approvalPoints),
+    value: 100 - (showThresholdGap ? thresholdPoints : approvalPoints),
     fill: COLORS.rejection,
     isEmpty: true,
     noBorder: true // No border
@@ -522,20 +510,6 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
                   const data = payload[0].payload;
                   if (data.isEmpty) return null;
                   
-                  if (data.isPotential) {
-                    return (
-                      <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
-                        <p className="font-semibold text-gray-800 mb-2">{data.name}</p>
-                        <p className="text-gray-600">
-                          Additional: +{data.value.toFixed(1)} potential points
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Extra points possible by improving all factors
-                        </p>
-                      </div>
-                    );
-                  }
-                  
                   if (data.isThresholdGap) {
                     return (
                       <div className="bg-white p-4 border rounded shadow-lg max-w-xs">
@@ -575,15 +549,9 @@ const ApprovalChart = ({ featureImportance, baseValue, approvalProbability, appr
               <span>Points Needed: {(thresholdPoints - approvalPoints).toFixed(0)}</span>
             </div>
           )}
-          {showPotentialGain && (
-            <div className="text-center text-sm text-gray-600">
-              <span className="inline-block w-3 h-3 bg-[#e74c3c] rounded-full mr-1" style={{border: '1px solid #e74c3c'}}></span>
-              <span>Additional Potential: {(potentialApprovalPercentage - thresholdPoints).toFixed(0)} pts</span>
-            </div>
-          )}
           <div className="text-center text-sm text-gray-600">
             <span className="inline-block w-3 h-3 bg-[#e0e0e0] rounded-full mr-1"></span>
-            <span>Required Points: {(100-Math.max(potentialApprovalPercentage, isBelowThreshold ? thresholdPoints : approvalPoints)).toFixed(0)}</span>
+            <span>Required Points: {thresholdPoints}</span>
           </div>
         </div>
       </div>
