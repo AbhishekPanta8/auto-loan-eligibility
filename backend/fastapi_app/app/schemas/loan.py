@@ -118,3 +118,4 @@ class LoanPredictionResponse(BaseModel):
     explanation: Optional[LoanExplanation] = None
     approval_probability: float
     rejection_probability: float
+    approval_threshold: float

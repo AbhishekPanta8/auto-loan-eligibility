@@ -286,8 +286,8 @@ def predict_loan_eligibility(application: LoanApplication):
         logger.debug(f"Processed input for prediction: {input_processed.to_dict(orient='records')[0]}")
 
         # Get model prediction
-        loan_approval = clf_model.predict(input_processed)[0]
         approval_probability = clf_model.predict_proba(input_processed)[0][1]
+        loan_approval = 1 if approval_probability >= APPROVAL_THRESHOLD else 0
         rejection_probability = 1 - approval_probability
         
         # Get explanation if loan is rejected
@@ -331,7 +331,8 @@ def predict_loan_eligibility(application: LoanApplication):
             credit_report=credit_report,
             explanation=explanation,
             approval_probability=approval_probability,
-            rejection_probability=rejection_probability
+            rejection_probability=rejection_probability,
+            approval_threshold=APPROVAL_THRESHOLD
         )
     except Exception as e:
         logger.exception("Error predicting loan eligibility")

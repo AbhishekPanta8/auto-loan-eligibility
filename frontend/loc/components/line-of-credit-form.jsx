@@ -54,17 +54,375 @@ export function LineOfCreditForm() {
     street_type: "ST",
   })
 
+  // Add state for field validation errors
+  const [fieldErrors, setFieldErrors] = useState({})
+
   const handleChange = (field, value) => {
-    setFormData({
+    // Create an updated form data object to make multiple changes if needed
+    const updatedFormData = {
       ...formData,
       [field]: value,
-    })
+    };
+    
+    // If employment status is being changed to student, unemployed, or retired, set months_employed to 0
+    if (field === 'employment_status') {
+      if (value === 'Student' || value === 'Unemployed' || value === 'Retired') {
+        updatedFormData.months_employed = 0;
+      }
+    }
+    
+    // Update the form data with all changes
+    setFormData(updatedFormData);
+
+    // Clear error for the field that was just updated
+    if (fieldErrors[field]) {
+      const updatedErrors = { ...fieldErrors };
+      delete updatedErrors[field]; // Remove the error completely instead of setting to null
+      setFieldErrors(updatedErrors);
+    }
+    
+    // If we also updated months_employed, clear its error too
+    if (field === 'employment_status' && (value === 'Student' || value === 'Unemployed' || value === 'Retired')) {
+      if (fieldErrors.months_employed) {
+        const updatedErrors = { ...fieldErrors };
+        delete updatedErrors.months_employed;
+        setFieldErrors(updatedErrors);
+      }
+    }
+
+    // Validate field based on constraints
+    switch (field) {
+      case 'full_name':
+        if (!value || value.trim() === '') {
+          setFieldErrors({
+            ...fieldErrors,
+            full_name: "Full name is required."
+          });
+        }
+        break;
+        
+      case 'age':
+        if (value < 19) {
+          setFieldErrors({
+            ...fieldErrors,
+            age: "Age must be at least 19 years old to apply for a line of credit."
+          });
+        } else if (value > 100) {
+          setFieldErrors({
+            ...fieldErrors,
+            age: "Age must be 100 years or less to apply for a line of credit."
+          });
+        }
+        break;
+        
+      case 'self_reported_expenses':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            self_reported_expenses: "Monthly expenses cannot be negative."
+          });
+        } else if (value > 10000) {
+          setFieldErrors({
+            ...fieldErrors,
+            self_reported_expenses: "Monthly expenses cannot exceed $10,000."
+          });
+        }
+        break;
+        
+      case 'self_reported_debt':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            self_reported_debt: "Monthly debt payments cannot be negative."
+          });
+        } else if (value > 10000) {
+          setFieldErrors({
+            ...fieldErrors,
+            self_reported_debt: "Monthly debt payments cannot exceed $10,000."
+          });
+        }
+        break;
+        
+      case 'estimated_debt':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            estimated_debt: "Estimated debt cannot be negative."
+          });
+        } else if (value > 10000) {
+          setFieldErrors({
+            ...fieldErrors,
+            estimated_debt: "Estimated debt cannot exceed $10,000."
+          });
+        }
+        break;
+        
+      case 'months_employed':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            months_employed: "Months employed cannot be negative."
+          });
+        } else if (value > 600) {
+          setFieldErrors({
+            ...fieldErrors,
+            months_employed: "Months employed cannot exceed 600."
+          });
+        }
+        break;
+        
+      case 'annual_income':
+        if (value < 20000) {
+          setFieldErrors({
+            ...fieldErrors,
+            annual_income: "Annual income must be at least $20,000."
+          });
+        } else if (value > 200000) {
+          setFieldErrors({
+            ...fieldErrors,
+            annual_income: "Annual income cannot exceed $200,000."
+          });
+        }
+        break;
+        
+      case 'credit_score':
+        if (value < 300) {
+          setFieldErrors({
+            ...fieldErrors,
+            credit_score: "Credit score must be at least 300."
+          });
+        } else if (value > 900) {
+          setFieldErrors({
+            ...fieldErrors,
+            credit_score: "Credit score cannot exceed 900."
+          });
+        }
+        break;
+        
+      case 'credit_utilization':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            credit_utilization: "Credit utilization cannot be negative."
+          });
+        } else if (value > 100) {
+          setFieldErrors({
+            ...fieldErrors,
+            credit_utilization: "Credit utilization cannot exceed 100%."
+          });
+        }
+        break;
+        
+      case 'num_open_accounts':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            num_open_accounts: "Number of open accounts cannot be negative."
+          });
+        } else if (value > 20) {
+          setFieldErrors({
+            ...fieldErrors,
+            num_open_accounts: "Number of open accounts cannot exceed 20."
+          });
+        }
+        break;
+        
+      case 'num_credit_inquiries':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            num_credit_inquiries: "Number of credit inquiries cannot be negative."
+          });
+        } else if (value > 10) {
+          setFieldErrors({
+            ...fieldErrors,
+            num_credit_inquiries: "Number of credit inquiries cannot exceed 10."
+          });
+        }
+        break;
+        
+      case 'current_credit_limit':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            current_credit_limit: "Current credit limit cannot be negative."
+          });
+        } else if (value > 50000) {
+          setFieldErrors({
+            ...fieldErrors,
+            current_credit_limit: "Current credit limit cannot exceed $50,000."
+          });
+        }
+        break;
+        
+      case 'requested_amount':
+        if (value < 1000) {
+          setFieldErrors({
+            ...fieldErrors,
+            requested_amount: "Requested amount must be at least $1,000."
+          });
+        } else if (value > 50000) {
+          setFieldErrors({
+            ...fieldErrors,
+            requested_amount: "Requested amount cannot exceed $50,000."
+          });
+        }
+        break;
+        
+      case 'monthly_expenses':
+        if (value < 0) {
+          setFieldErrors({
+            ...fieldErrors,
+            monthly_expenses: "Monthly expenses cannot be negative."
+          });
+        } else if (value > 10000) {
+          setFieldErrors({
+            ...fieldErrors,
+            monthly_expenses: "Monthly expenses cannot exceed $10,000."
+          });
+        }
+        break;
+    }
   }
 
+  const validateStep = (currentStep) => {
+    const errors = {};
+    
+    // Step 1 - Personal Information
+    if (currentStep === 1) {
+      // Full name validation
+      if (!formData.full_name || formData.full_name.trim() === '') {
+        errors.full_name = "Full name is required.";
+      }
+      
+      // Age validation (19-100)
+      if (formData.age < 19) {
+        errors.age = "Age must be at least 19 years old to apply for a line of credit.";
+      } else if (formData.age > 100) {
+        errors.age = "Age must be 100 years or less to apply for a line of credit.";
+      }
+    }
+    
+    // Step 2 - Financial Information
+    else if (currentStep === 2) {
+      // Self-reported expenses validation (0-10,000)
+      if (formData.self_reported_expenses < 0) {
+        errors.self_reported_expenses = "Monthly expenses cannot be negative.";
+      } else if (formData.self_reported_expenses > 10000) {
+        errors.self_reported_expenses = "Monthly expenses cannot exceed $10,000.";
+      }
+      
+      // Self-reported debt validation (0-10,000)
+      if (formData.self_reported_debt < 0) {
+        errors.self_reported_debt = "Monthly debt payments cannot be negative.";
+      } else if (formData.self_reported_debt > 10000) {
+        errors.self_reported_debt = "Monthly debt payments cannot exceed $10,000.";
+      }
+      
+      // Estimated debt validation (0-10,000)
+      if (formData.estimated_debt < 0) {
+        errors.estimated_debt = "Estimated debt cannot be negative.";
+      } else if (formData.estimated_debt > 10000) {
+        errors.estimated_debt = "Estimated debt cannot exceed $10,000.";
+      }
+    }
+    
+    // Step 3 - Employment & Income
+    else if (currentStep === 3) {
+      // Months employed validation (0-600) - skip if employment status is Student, Unemployed, or Retired
+      if (!['Student', 'Unemployed', 'Retired'].includes(formData.employment_status)) {
+        if (formData.months_employed < 0) {
+          errors.months_employed = "Months employed cannot be negative.";
+        } else if (formData.months_employed > 600) {
+          errors.months_employed = "Months employed cannot exceed 600.";
+        }
+      }
+      
+      // Annual income validation (20,000-200,000)
+      if (formData.annual_income < 20000) {
+        errors.annual_income = "Annual income must be at least $20,000.";
+      } else if (formData.annual_income > 200000) {
+        errors.annual_income = "Annual income cannot exceed $200,000.";
+      }
+    }
+    
+    // Step 4 - Credit Information
+    else if (currentStep === 4) {
+      // Credit score validation (300-900)
+      if (formData.credit_score < 300) {
+        errors.credit_score = "Credit score must be at least 300.";
+      } else if (formData.credit_score > 900) {
+        errors.credit_score = "Credit score cannot exceed 900.";
+      }
+      
+      // Credit utilization validation (0-100%)
+      if (formData.credit_utilization < 0) {
+        errors.credit_utilization = "Credit utilization cannot be negative.";
+      } else if (formData.credit_utilization > 100) {
+        errors.credit_utilization = "Credit utilization cannot exceed 100%.";
+      }
+      
+      // Open accounts validation (0-20)
+      if (formData.num_open_accounts < 0) {
+        errors.num_open_accounts = "Number of open accounts cannot be negative.";
+      } else if (formData.num_open_accounts > 20) {
+        errors.num_open_accounts = "Number of open accounts cannot exceed 20.";
+      }
+      
+      // Credit inquiries validation (0-10)
+      if (formData.num_credit_inquiries < 0) {
+        errors.num_credit_inquiries = "Number of credit inquiries cannot be negative.";
+      } else if (formData.num_credit_inquiries > 10) {
+        errors.num_credit_inquiries = "Number of credit inquiries cannot exceed 10.";
+      }
+      
+      // Current credit limit validation
+      if (formData.current_credit_limit < 0) {
+        errors.current_credit_limit = "Current credit limit cannot be negative.";
+      } else if (formData.current_credit_limit > 50000) {
+        errors.current_credit_limit = "Current credit limit cannot exceed $50,000.";
+      }
+    }
+    
+    // Step 5 - Line of Credit Request
+    else if (currentStep === 5) {
+      // Requested amount validation (1,000-50,000)
+      if (formData.requested_amount < 1000) {
+        errors.requested_amount = "Requested amount must be at least $1,000.";
+      } else if (formData.requested_amount > 50000) {
+        errors.requested_amount = "Requested amount cannot exceed $50,000.";
+      }
+      
+      // Monthly expenses validation (0-10,000)
+      if (formData.monthly_expenses < 0) {
+        errors.monthly_expenses = "Monthly expenses cannot be negative.";
+      } else if (formData.monthly_expenses > 10000) {
+        errors.monthly_expenses = "Monthly expenses cannot exceed $10,000.";
+      }
+    }
+    
+    // Step 6 - Credit Check Authorization
+    else if (currentStep === 6) {
+      // Credit check authorization is not mandatory - removed validation
+    }
+    
+    return errors;
+  };
+
   const nextStep = () => {
-    const newStep = step + 1
-    setStep(newStep)
-    setProgress(newStep * 20)
+    // Validate current step before proceeding
+    const errors = validateStep(step);
+    
+    // If there are errors, update state and stop
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    
+    // If validation passed, proceed to next step
+    const newStep = step + 1;
+    setStep(newStep);
+    setProgress(newStep * 20);
   }
 
   const prevStep = () => {
@@ -77,6 +435,29 @@ export function LineOfCreditForm() {
     setLoading(true)
     setApiError(false)
     setErrorMessage("")
+    
+    // Validate all fields before submission
+    const errors = {
+      ...validateStep(1),
+      ...validateStep(2),
+      ...validateStep(3),
+      ...validateStep(4),
+      ...validateStep(5),
+      ...validateStep(6)
+    };
+    
+    // If there are any errors, don't submit
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setApiError(true);
+      
+      // Create a user-friendly error message from the validation errors
+      const errorMessages = Object.values(errors);
+      setErrorMessage(errorMessages.join("\n"));
+      setLoading(false);
+      return;
+    }
+    
     try {
       const response = await fetch("http://localhost:8000/predict/", {
         method: "POST",
@@ -90,29 +471,62 @@ export function LineOfCreditForm() {
         setApiError(true)
         if (response.status === 422) {
           const errorData = await response.json()
-          setErrorMessage("Validation error: Please check your input data.")
           console.error("Validation error:", errorData)
+          
+          // Extract detailed error message
+          if (errorData.detail && Array.isArray(errorData.detail)) {
+            const errorMessages = errorData.detail.map(error => {
+              // Handle specific field errors
+              if (error.loc && error.loc.length > 1) {
+                const fieldName = error.loc[1];
+                
+                // Age-specific error message
+                if (fieldName === 'age') {
+                  if (error.msg.includes('greater than or equal to')) {
+                    return "Age must be at least 19 years old to apply for a line of credit.";
+                  }
+                  if (error.msg.includes('less than or equal to')) {
+                    return "Age must be 100 years or less to apply for a line of credit.";
+                  }
+                  return `Age error: ${error.msg}`;
+                }
+                
+                // Format field name for display (e.g., convert "full_name" to "Full Name")
+                const formattedFieldName = fieldName
+                  .split('_')
+                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(' ');
+                
+                return `${formattedFieldName}: ${error.msg}`;
+              }
+              return error.msg;
+            });
+            
+            setErrorMessage(errorMessages.join("\n"));
+          } else {
+            setErrorMessage("Validation error: Please check your input data.");
+          }
         } else {
-          setErrorMessage(`Server responded with status: ${response.status}`)
+          setErrorMessage(`Server responded with status: ${response.status}`);
         }
-        throw new Error(`Server responded with status: ${response.status}`)
+        return; // Don't proceed with submission
       }
 
-      const data = await response.json()
-      setResult(data)
-      setStep(7)
-      setProgress(100)
+      const data = await response.json();
+      setResult(data);
+      setStep(7);
+      setProgress(100);
     } catch (error) {
-      console.error("Error submitting form:", error)
-      setApiError(true)
+      console.error("Error submitting form:", error);
+      setApiError(true);
       if (!errorMessage) {
-        setErrorMessage("Network error: Unable to connect to the server. Please check your internet connection and try again.")
+        setErrorMessage("Network error: Unable to connect to the server. Please check your internet connection and try again.");
       }
-      setResult(null)
-      setStep(7)
-      setProgress(100)
+      setResult(null);
+      setStep(7);
+      setProgress(100);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -134,6 +548,7 @@ export function LineOfCreditForm() {
     setResult(null)
     setApiError(false)
     setErrorMessage("")
+    setFieldErrors({})
     setFormData({
       full_name: "",
       age: 30,
@@ -177,6 +592,20 @@ export function LineOfCreditForm() {
         <Progress value={progress} className="h-2 mt-2" />
       </CardHeader>
       <CardContent>
+        {apiError && (
+          <div className="mb-4 p-4 border border-red-200 rounded-lg bg-red-50">
+            <div className="flex items-start">
+              <AlertCircle className="h-5 w-5 text-red-600 mr-2 mt-0.5" />
+              <div>
+                <h4 className="text-red-800 font-medium mb-1">Error</h4>
+                {errorMessage.split('\n').map((message, i) => (
+                  <p key={i} className="text-red-700 text-sm">{message}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        
         {step === 1 && (
           <div className="space-y-6">
             <div className="bg-[#f0f7ef] p-4 rounded-lg border border-[#3d8b37] mb-6">
@@ -195,7 +624,7 @@ export function LineOfCreditForm() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="full_name">
-                  Full Name
+                  Full Name <span className="text-red-500">*</span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild data-testid="tooltip-full-name">
@@ -211,7 +640,13 @@ export function LineOfCreditForm() {
                   id="full_name"
                   placeholder="Enter your full name"
                   value={formData.full_name}
-                  onChange={(e) => handleChange("full_name", e.target.value)} />
+                  onChange={(e) => handleChange("full_name", e.target.value)}
+                  className={fieldErrors.full_name ? "border-red-500" : ""} />
+                {fieldErrors.full_name ? (
+                  <p className="text-xs text-red-500">{fieldErrors.full_name}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">As it appears on your government ID</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -223,7 +658,7 @@ export function LineOfCreditForm() {
                         <HelpCircle className="h-4 w-4 inline-block ml-1 text-gray-400" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>You must be at least 18 years old to apply for a line of credit.</p>
+                        <p>You must be at least 19 years old to apply for a line of credit.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -231,11 +666,17 @@ export function LineOfCreditForm() {
                 <Input
                   id="age"
                   type="number"
-                  min={18}
+                  min={19}
                   max={100}
-                  placeholder="Enter your age"
+                  placeholder="Enter your age (19-100)"
                   value={formData.age === null ? '' : formData.age}
-                  onChange={(e) => handleChange("age", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
+                  onChange={(e) => handleChange("age", e.target.value === '' ? null : Number.parseInt(e.target.value))}
+                  className={fieldErrors.age ? "border-red-500" : ""} />
+                {fieldErrors.age ? (
+                  <p className="text-xs text-red-500">{fieldErrors.age}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">Applicants must be between 19-100 years old</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -305,12 +746,18 @@ export function LineOfCreditForm() {
                     max={10000}
                     step={100}
                     value={[formData.self_reported_expenses]}
-                    onValueChange={(value) => handleChange("self_reported_expenses", value[0])} />
+                    onValueChange={(value) => handleChange("self_reported_expenses", value[0])}
+                    className={fieldErrors.self_reported_expenses ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$0</span>
-                    <span className="font-medium">{formatCurrency(formData.self_reported_expenses)}</span>
+                    <span className={`font-medium ${fieldErrors.self_reported_expenses ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.self_reported_expenses)}
+                    </span>
                     <span className="text-sm text-gray-500">$10,000</span>
                   </div>
+                  {fieldErrors.self_reported_expenses && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.self_reported_expenses}</p>
+                  )}
                 </div>
               </div>
 
@@ -334,12 +781,18 @@ export function LineOfCreditForm() {
                     max={10000}
                     step={100}
                     value={[formData.self_reported_debt]}
-                    onValueChange={(value) => handleChange("self_reported_debt", value[0])} />
+                    onValueChange={(value) => handleChange("self_reported_debt", value[0])}
+                    className={fieldErrors.self_reported_debt ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$0</span>
-                    <span className="font-medium">{formatCurrency(formData.self_reported_debt)}</span>
+                    <span className={`font-medium ${fieldErrors.self_reported_debt ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.self_reported_debt)}
+                    </span>
                     <span className="text-sm text-gray-500">$10,000</span>
                   </div>
+                  {fieldErrors.self_reported_debt && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.self_reported_debt}</p>
+                  )}
                 </div>
               </div>
 
@@ -363,12 +816,18 @@ export function LineOfCreditForm() {
                     max={10000}
                     step={100}
                     value={[formData.estimated_debt]}
-                    onValueChange={(value) => handleChange("estimated_debt", value[0])} />
+                    onValueChange={(value) => handleChange("estimated_debt", value[0])}
+                    className={fieldErrors.estimated_debt ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$0</span>
-                    <span className="font-medium">{formatCurrency(formData.estimated_debt)}</span>
+                    <span className={`font-medium ${fieldErrors.estimated_debt ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.estimated_debt)}
+                    </span>
                     <span className="text-sm text-gray-500">$10,000</span>
                   </div>
+                  {fieldErrors.estimated_debt && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.estimated_debt}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -430,9 +889,20 @@ export function LineOfCreditForm() {
                   type="number"
                   min={0}
                   max={600}
-                  placeholder="Enter months employed"
+                  placeholder="Enter months employed (0-600)"
                   value={formData.months_employed === null ? '' : formData.months_employed}
-                  onChange={(e) => handleChange("months_employed", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
+                  onChange={(e) => handleChange("months_employed", e.target.value === '' ? null : Number.parseInt(e.target.value))}
+                  className={`${fieldErrors.months_employed ? "border-red-500" : ""} ${['Student', 'Unemployed', 'Retired'].includes(formData.employment_status) ? "bg-gray-100" : ""}`}
+                  disabled={['Student', 'Unemployed', 'Retired'].includes(formData.employment_status)} />
+                {fieldErrors.months_employed ? (
+                  <p className="text-xs text-red-500">{fieldErrors.months_employed}</p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    {['Student', 'Unemployed', 'Retired'].includes(formData.employment_status) 
+                      ? "Automatically set to 0 based on employment status" 
+                      : "Must be between 0-600 months"}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -455,12 +925,18 @@ export function LineOfCreditForm() {
                     max={200000}
                     step={1000}
                     value={[formData.annual_income]}
-                    onValueChange={(value) => handleChange("annual_income", value[0])} />
+                    onValueChange={(value) => handleChange("annual_income", value[0])}
+                    className={fieldErrors.annual_income ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$20,000</span>
-                    <span className="font-medium">{formatCurrency(formData.annual_income)}</span>
+                    <span className={`font-medium ${fieldErrors.annual_income ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.annual_income)}
+                    </span>
                     <span className="text-sm text-gray-500">$200,000</span>
                   </div>
+                  {fieldErrors.annual_income && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.annual_income}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -495,12 +971,18 @@ export function LineOfCreditForm() {
                     max={900}
                     step={10}
                     value={[formData.credit_score]}
-                    onValueChange={(value) => handleChange("credit_score", value[0])} />
+                    onValueChange={(value) => handleChange("credit_score", value[0])}
+                    className={fieldErrors.credit_score ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">300</span>
-                    <span className="font-medium">{formData.credit_score}</span>
+                    <span className={`font-medium ${fieldErrors.credit_score ? "text-red-500" : ""}`}>
+                      {formData.credit_score}
+                    </span>
                     <span className="text-sm text-gray-500">900</span>
                   </div>
+                  {fieldErrors.credit_score && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.credit_score}</p>
+                  )}
                 </div>
               </div>
 
@@ -527,12 +1009,18 @@ export function LineOfCreditForm() {
                     max={100}
                     step={1}
                     value={[formData.credit_utilization]}
-                    onValueChange={(value) => handleChange("credit_utilization", value[0])} />
+                    onValueChange={(value) => handleChange("credit_utilization", value[0])}
+                    className={fieldErrors.credit_utilization ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">0%</span>
-                    <span className="font-medium">{formatPercent(formData.credit_utilization)}</span>
+                    <span className={`font-medium ${fieldErrors.credit_utilization ? "text-red-500" : ""}`}>
+                      {formatPercent(formData.credit_utilization)}
+                    </span>
                     <span className="text-sm text-gray-500">100%</span>
                   </div>
+                  {fieldErrors.credit_utilization && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.credit_utilization}</p>
+                  )}
                 </div>
               </div>
 
@@ -585,9 +1073,13 @@ export function LineOfCreditForm() {
                     type="number"
                     min={0}
                     max={20}
-                    placeholder="Enter number"
+                    placeholder="Enter number (0-20)"
                     value={formData.num_open_accounts === null ? '' : formData.num_open_accounts}
-                    onChange={(e) => handleChange("num_open_accounts", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
+                    onChange={(e) => handleChange("num_open_accounts", e.target.value === '' ? null : Number.parseInt(e.target.value))}
+                    className={fieldErrors.num_open_accounts ? "border-red-500" : ""} />
+                  {fieldErrors.num_open_accounts && (
+                    <p className="text-xs text-red-500">{fieldErrors.num_open_accounts}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -609,9 +1101,13 @@ export function LineOfCreditForm() {
                     type="number"
                     min={0}
                     max={10}
-                    placeholder="Enter number"
+                    placeholder="Enter number (0-10)"
                     value={formData.num_credit_inquiries === null ? '' : formData.num_credit_inquiries}
-                    onChange={(e) => handleChange("num_credit_inquiries", e.target.value === '' ? null : Number.parseInt(e.target.value))} />
+                    onChange={(e) => handleChange("num_credit_inquiries", e.target.value === '' ? null : Number.parseInt(e.target.value))}
+                    className={fieldErrors.num_credit_inquiries ? "border-red-500" : ""} />
+                  {fieldErrors.num_credit_inquiries && (
+                    <p className="text-xs text-red-500">{fieldErrors.num_credit_inquiries}</p>
+                  )}
                 </div>
               </div>
 
@@ -635,12 +1131,18 @@ export function LineOfCreditForm() {
                     max={50000}
                     step={1000}
                     value={[formData.current_credit_limit]}
-                    onValueChange={(value) => handleChange("current_credit_limit", value[0])} />
+                    onValueChange={(value) => handleChange("current_credit_limit", value[0])}
+                    className={fieldErrors.current_credit_limit ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$0</span>
-                    <span className="font-medium">{formatCurrency(formData.current_credit_limit)}</span>
+                    <span className={`font-medium ${fieldErrors.current_credit_limit ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.current_credit_limit)}
+                    </span>
                     <span className="text-sm text-gray-500">$50,000</span>
                   </div>
+                  {fieldErrors.current_credit_limit && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.current_credit_limit}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -672,12 +1174,18 @@ export function LineOfCreditForm() {
                     max={50000}
                     step={1000}
                     value={[formData.requested_amount]}
-                    onValueChange={(value) => handleChange("requested_amount", value[0])} />
+                    onValueChange={(value) => handleChange("requested_amount", value[0])}
+                    className={fieldErrors.requested_amount ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$1,000</span>
-                    <span className="font-medium">{formatCurrency(formData.requested_amount)}</span>
+                    <span className={`font-medium ${fieldErrors.requested_amount ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.requested_amount)}
+                    </span>
                     <span className="text-sm text-gray-500">$50,000</span>
                   </div>
+                  {fieldErrors.requested_amount && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.requested_amount}</p>
+                  )}
                 </div>
               </div>
 
@@ -701,12 +1209,18 @@ export function LineOfCreditForm() {
                     max={10000}
                     step={100}
                     value={[formData.monthly_expenses]}
-                    onValueChange={(value) => handleChange("monthly_expenses", value[0])} />
+                    onValueChange={(value) => handleChange("monthly_expenses", value[0])}
+                    className={fieldErrors.monthly_expenses ? "opacity-80" : ""} />
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">$0</span>
-                    <span className="font-medium">{formatCurrency(formData.monthly_expenses)}</span>
+                    <span className={`font-medium ${fieldErrors.monthly_expenses ? "text-red-500" : ""}`}>
+                      {formatCurrency(formData.monthly_expenses)}
+                    </span>
                     <span className="text-sm text-gray-500">$10,000</span>
                   </div>
+                  {fieldErrors.monthly_expenses && (
+                    <p className="text-xs text-red-500 mt-1">{fieldErrors.monthly_expenses}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -953,6 +1467,7 @@ export function LineOfCreditForm() {
                       featureImportance={result.explanation.technical_details.feature_importance}
                       baseValue={result.explanation.technical_details.base_value}
                       approvalProbability={result.approval_probability}
+                      approvalThreshold={result.approval_threshold}
                     />
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                       <h4 className="text-lg font-semibold mb-2 text-gray-800">Understanding Your Results</h4>
@@ -979,8 +1494,11 @@ export function LineOfCreditForm() {
           </Button>
         )}
         {step < 6 && (
-          <Button className="ml-auto bg-[#3d8b37] hover:bg-[#2c6428]" onClick={nextStep}>
-            Next
+          <Button 
+            className={`ml-auto ${Object.keys(fieldErrors).length > 0 ? 'bg-red-500 hover:bg-red-600' : 'bg-[#3d8b37] hover:bg-[#2c6428]'}`} 
+            onClick={nextStep}
+          >
+            {Object.keys(fieldErrors).length > 0 ? 'Fix Errors' : 'Next'}
           </Button>
         )}
         {step === 6 && (
