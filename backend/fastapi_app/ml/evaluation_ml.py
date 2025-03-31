@@ -487,12 +487,20 @@ def visualize_results(metrics, data):
     plt.legend()
     
     # Amount Prediction Error
-    if metrics['y_pred_credit_limit'] is not None and len(metrics['y_pred_credit_limit']) > 0:
+    if np.any(metrics['y_pred_credit_limit'] > 0):
         plt.subplot(2, 2, 3)
         common_approved_indices = metrics['common_approved_indices']
         if np.sum(common_approved_indices) > 0:
-            true_credit_limit = data['y_test_credit_limit'][common_approved_indices]
-            pred_credit_limit = metrics['y_pred_credit_limit'][:len(true_credit_limit)]
+            # Get the indices in the test set that are approved in both true and predicted
+            common_indices = data['test_indices'][common_approved_indices]
+            
+            # Get the true values for commonly approved loans
+            true_credit_limit = data['y_test_credit_limit'][common_indices]
+            
+            # Get the predicted values (from final_amounts after business rules)
+            pred_credit_limit = metrics['y_pred_credit_limit'][common_approved_indices]
+            
+            # Calculate error
             error = pred_credit_limit - true_credit_limit
             plt.hist(error, bins=30, alpha=0.7)
             plt.axvline(x=0, color='r', linestyle='--')
@@ -501,12 +509,20 @@ def visualize_results(metrics, data):
             plt.ylabel('Count')
     
     # Rate Prediction Error
-    if metrics['y_pred_interest'] is not None and len(metrics['y_pred_interest']) > 0:
+    if np.any(metrics['y_pred_interest'] > 0):
         plt.subplot(2, 2, 4)
         common_approved_indices = metrics['common_approved_indices']
         if np.sum(common_approved_indices) > 0:
-            true_interest = data['y_test_interest'][common_approved_indices]
-            pred_interest = metrics['y_pred_interest'][:len(true_interest)]
+            # Get the indices in the test set that are approved in both true and predicted
+            common_indices = data['test_indices'][common_approved_indices]
+            
+            # Get the true values for commonly approved loans
+            true_interest = data['y_test_interest'][common_indices]
+            
+            # Get the predicted values (from final_interest_rates after business rules)
+            pred_interest = metrics['y_pred_interest'][common_approved_indices]
+            
+            # Calculate error
             error = pred_interest - true_interest
             plt.hist(error, bins=30, alpha=0.7)
             plt.axvline(x=0, color='r', linestyle='--')
