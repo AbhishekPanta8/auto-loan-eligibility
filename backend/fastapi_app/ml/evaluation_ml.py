@@ -38,7 +38,7 @@ def generate_fresh_evaluation_data(num_samples=1000, output_file=None):
     
     try:
         # Try to import and use the synthetic_data module directly
-        import synthetic_data
+        import synthetic_data_new as synthetic_data
         
         # Generate applicant dataset
         df_applicant = synthetic_data.generate_applicant_dataset(num_rows=num_samples)
