@@ -255,6 +255,103 @@ def preprocess_test_data(X_test, artifacts, categorical_cols):
     
     return X_test_processed
 
+def apply_business_rules(approval, amount, interest_rate, features):
+    """
+    Apply business rules to ensure compliance with approval conditions, credit limits,
+    and interest rate constraints, matching the logic in loan.py.
+    
+    Parameters:
+    -----------
+    approval : int
+        Initial loan approval status (1 for approved, 0 for denied)
+    amount : float
+        ML-predicted loan amount
+    interest_rate : float
+        ML-predicted interest rate
+    features : dict or pd.Series
+        Features containing applicant information
+        
+    Returns:
+    --------
+    tuple
+        (final_approval, final_amount, final_interest_rate)
+    """
+    # Enforce hard approval/denial rules
+    if approval == 0:
+        return 0, 0.0, 0.0
+    
+    # Extract necessary features
+    credit_score = features['credit_score']
+    credit_utilization = features['credit_utilization']
+    
+    # Extract or calculate DTI
+    if 'DTI' in features:
+        dti = features['DTI']
+    else:
+        # Calculate DTI if not present in features
+        monthly_income = features['annual_income'] / 12
+        total_debt = features['self_reported_debt'] + features['estimated_debt']
+        monthly_payment = features['requested_amount'] * 0.03
+        dti = (total_debt + monthly_payment) / monthly_income * 100 if monthly_income > 0 else 0
+    
+    # Deny if any of these conditions are met (regardless of model prediction)
+    if (credit_score < 500 or dti > 50 or credit_utilization > 80):
+        return 0, 0.0, 0.0
+    
+    # Base limit based on credit score
+    annual_income = features['annual_income']
+    if credit_score >= 660:
+        base_limit = annual_income * 0.5
+    elif credit_score >= 500:
+        base_limit = annual_income * 0.25
+    else:
+        base_limit = annual_income * 0.1
+    
+    # DTI adjustment
+    if dti <= 30:
+        dti_factor = 1.0
+    elif dti <= 40:
+        dti_factor = 0.75
+    else:
+        dti_factor = 0.5
+    
+    # Credit score cap
+    if credit_score >= 750:
+        credit_cap = 25000
+    elif credit_score >= 660:
+        credit_cap = 15000
+    elif credit_score >= 500:
+        credit_cap = 10000
+    else:
+        credit_cap = 5000
+    
+    # Employment bonus
+    employment_status = features['employment_status']
+    months_employed = features['months_employed']
+    employment_bonus = 1.1 if (employment_status == "Full-time" and months_employed >= 12) else 1.0
+    
+    # Payment history penalty
+    payment_history = features['payment_history']
+    payment_penalty = 0.5 if payment_history == "Late >60" else 1.0
+    
+    # Credit utilization penalty
+    utilization_penalty = 0.8 if credit_utilization > 50 else 1.0
+    
+    # Calculate adjusted credit limit
+    adjusted_limit = min(
+        base_limit * dti_factor * employment_bonus * payment_penalty * utilization_penalty,
+        credit_cap
+    )
+    
+    # Use the lower of ML prediction or rule-based limit
+    final_amount = min(amount, adjusted_limit)
+    final_amount = min(final_amount, features['requested_amount'])
+    
+    # Ensure interest rate is within specified range (3-15%)
+    final_interest_rate = max(3.0, min(15.0, interest_rate))
+    
+    return approval, final_amount, final_interest_rate
+
 def evaluate_models(models, X_test_processed, data):
     """
     Evaluate the trained models on the test data
@@ -272,43 +369,62 @@ def evaluate_models(models, X_test_processed, data):
     
     # Use threshold of 0.5 for approval decision
     threshold = 0.5
-    y_pred_approval = (y_proba_approval >= threshold).astype(int)
+    y_pred_approval_raw = (y_proba_approval >= threshold).astype(int)
     
-    # Get credit limit and interest rate predictions for approved loans
-    approved_indices = y_pred_approval == 1
-    X_test_approved = X_test_processed[approved_indices]
+    # Initialize arrays to store final predictions after business rules
+    X_test_original = data['X_test']
+    final_approvals = np.zeros_like(y_pred_approval_raw)
+    final_amounts = np.zeros(len(y_pred_approval_raw))
+    final_interest_rates = np.zeros(len(y_pred_approval_raw))
     
-    if len(X_test_approved) > 0:
-        y_pred_credit_limit = models['credit_limit_model'].predict(X_test_approved)
-        y_pred_interest = models['interest_rate_model'].predict(X_test_approved)
-    else:
-        y_pred_credit_limit = np.array([])
-        y_pred_interest = np.array([])
+    # Apply business rules to each prediction
+    for i, (idx, row) in enumerate(X_test_original.iterrows()):
+        # Only predict amount and interest rate for initially approved loans
+        if y_pred_approval_raw[i] == 1:
+            amount = models['credit_limit_model'].predict(X_test_processed[i:i+1])[0]
+            interest_rate = models['interest_rate_model'].predict(X_test_processed[i:i+1])[0]
+        else:
+            amount = 0.0
+            interest_rate = 0.0
+        
+        # Apply business rules
+        final_approval, final_amount, final_interest = apply_business_rules(
+            y_pred_approval_raw[i], amount, interest_rate, row
+        )
+        
+        # Store final predictions
+        final_approvals[i] = final_approval
+        final_amounts[i] = final_amount
+        final_interest_rates[i] = final_interest
     
-    # Calculate metrics
-    accuracy = accuracy_score(data['y_test_approval'], y_pred_approval)
-    conf_matrix = confusion_matrix(data['y_test_approval'], y_pred_approval)
+    # Calculate metrics using final predictions after business rules
+    accuracy = accuracy_score(data['y_test_approval'], final_approvals)
+    conf_matrix = confusion_matrix(data['y_test_approval'], final_approvals)
     
     # Calculate recall, precision, and F1 score for approvals (class 1)
-    recall = recall_score(data['y_test_approval'], y_pred_approval)
-    precision = precision_score(data['y_test_approval'], y_pred_approval)
-    f1 = f1_score(data['y_test_approval'], y_pred_approval)
+    recall = recall_score(data['y_test_approval'], final_approvals)
+    precision = precision_score(data['y_test_approval'], final_approvals)
+    f1 = f1_score(data['y_test_approval'], final_approvals)
     
     # Calculate MAE for credit limit and interest rate
     # We need to match the indices of true and predicted values
     true_approved_indices = data['y_test_approval'] == 1
+    pred_approved_indices = final_approvals == 1
     
     # Get the indices in the original test set that are approved in both true and predicted
-    common_approved_indices = np.logical_and(true_approved_indices, approved_indices)
+    common_approved_indices = np.logical_and(true_approved_indices, pred_approved_indices)
     
     if np.sum(common_approved_indices) > 0:
+        # Get the indices in the test set
+        common_indices = data['test_indices'][common_approved_indices]
+        
         # Get the true values for loans that are approved in both true and predicted
-        true_credit_limit = data['y_test_credit_limit'][common_approved_indices]
-        true_interest = data['y_test_interest'][common_approved_indices]
+        true_credit_limit = data['y_test_credit_limit'][common_indices]
+        true_interest = data['y_test_interest'][common_indices]
         
         # Get the predicted values for the same loans
-        pred_credit_limit = y_pred_credit_limit[:len(true_credit_limit)]
-        pred_interest = y_pred_interest[:len(true_interest)]
+        pred_credit_limit = final_amounts[common_approved_indices]
+        pred_interest = final_interest_rates[common_approved_indices]
         
         # Calculate MAE
         mae_credit_limit = mean_absolute_error(true_credit_limit, pred_credit_limit)
@@ -325,12 +441,12 @@ def evaluate_models(models, X_test_processed, data):
         'conf_matrix': conf_matrix,
         'mae_credit_limit': mae_credit_limit,
         'mae_interest': mae_interest,
-        'y_pred_approval': y_pred_approval,
-        'y_pred_credit_limit': y_pred_credit_limit if len(X_test_approved) > 0 else None,
-        'y_pred_interest': y_pred_interest if len(X_test_approved) > 0 else None,
+        'y_pred_approval': final_approvals,
+        'y_pred_credit_limit': final_amounts,
+        'y_pred_interest': final_interest_rates,
         'true_approved_indices': true_approved_indices,
-        'pred_approved_indices': approved_indices,
-        'common_approved_indices': np.logical_and(true_approved_indices, approved_indices) if len(X_test_approved) > 0 else None
+        'pred_approved_indices': pred_approved_indices,
+        'common_approved_indices': common_approved_indices
     }
 
 def visualize_results(metrics, data):
