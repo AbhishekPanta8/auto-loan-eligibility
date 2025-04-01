@@ -42,7 +42,7 @@ def generate_applicant_dataset(num_rows=ROWS):
     self_reported_expenses = np.random.uniform(0, 10_000, num_rows)
 
     # requested_amount: uniform(1,000–50,000)
-    requested_amount = np.random.uniform(1000, 30000, num_rows)  # Reduced max to 30k for better approval rates
+    requested_amount = np.random.uniform(1000, 50000, num_rows)  # Reduced max to 30k for better approval rates
 
     # age: 19–100
     age = np.random.randint(19, 101, num_rows)
